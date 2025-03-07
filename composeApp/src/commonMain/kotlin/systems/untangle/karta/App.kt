@@ -1,5 +1,6 @@
 package systems.untangle.karta
 
+import coil3.compose.AsyncImage
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -25,17 +26,23 @@ import org.jetbrains.compose.ui.tooling.preview.Preview
 
 import karta.composeapp.generated.resources.Res
 import karta.composeapp.generated.resources.compose_multiplatform
-val tile_width = 256
+val tile_width = 512
 
 @Composable
 fun Tile(row: Int, column: Int, xOffset: Int, yOffset: Int) {
-	val top = yOffset - column * tile_width
+	val top = yOffset + column * tile_width
 	val left = xOffset + row * tile_width
 
 	Box(modifier = Modifier
 		.offset { IntOffset(left, top) }
 		.background(Color.Blue)
-		.size(tile_width.dp))
+		.size(tile_width.dp)
+	) {
+		AsyncImage(
+			model = "http://localhost:8077/14/${6358+row}/${9136+column}",
+			contentDescription = ""
+		)
+	}
 }
 
 @Composable
