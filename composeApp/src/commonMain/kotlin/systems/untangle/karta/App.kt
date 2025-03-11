@@ -1,13 +1,18 @@
 package systems.untangle.karta
 
 import kotlin.io.println
+import kotlin.math.sign
+import kotlin.math.pow
+import kotlin.math.atan
+import kotlin.math.sinh
+import kotlin.math.PI
 import coil3.compose.AsyncImage
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
@@ -29,6 +34,9 @@ import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.layout.onSizeChanged
+
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
 
 /**
  * 
@@ -86,8 +94,34 @@ data class Size(
 ) {
 	val halfWidth: Int by lazy { width / 2 }
 	val halfHeight: Int by lazy { height / 2 }
-	override fun equals(o: Any?) = (o is Size) && (o.width == width) && (o.height == height)
-	override fun hashCode() : Int = width.hashCode().xor(height.hashCode())
+
+	override fun equals(o: Any?) : Boolean {
+		return (o is Size)
+			&& (o.width == width)
+			&& (o.height == height)
+	}
+
+	override fun hashCode() : Int {
+		return width.hashCode().xor(height.hashCode())
+	}
+}
+
+data class Coordinates(
+	val latitude: Double,
+	val longitude: Double
+)
+
+data class Region(
+	val topLeft: Coordinates,
+	val bottomRight: Coordinates
+)
+
+fun convertToLatLong(zoom: Int, tileCoords: Offset) : Coordinates {
+	val numberOfTiles = 2.0.pow(zoom)
+	val longitude = (tileCoords.x / numberOfTiles) * 360.0 - 180.0
+	val latRadians = atan(sinh(PI * (1.0 - (2.0 * tileCoords.y / numberOfTiles))))
+	val latitude = (latRadians * 180.0) / PI
+	return Coordinates(latitude, longitude)
 }
 
 const val tile_width = 512
@@ -110,18 +144,40 @@ fun Tile(zoom: Float, xIndex: Int, yIndex: Int, center: Offset, viewSize: Size) 
 	}
 }
 
+val LocalCursor = compositionLocalOf { Coordinates(0.0, 0.0) }
+val LocalViewingRegion = compositionLocalOf { Region(
+	Coordinates(0.0, 0.0),
+	Coordinates(0.0, 0.0)
+)}
+
 @OptIn(
 	ExperimentalFoundationApi::class,
 	ExperimentalComposeUiApi::class
 )
 @Composable
-fun App() {
+fun Karta(children: @Composable () -> Unit = {}) {
 	var zoom by remember { mutableStateOf(14f) }
 	var center by remember { mutableStateOf(Offset(6358.5f, 9136.5f)) }
 	var viewSize by remember { mutableStateOf(Size(0, 0)) }
-	var cursor by remember { mutableStateOf(Offset(0f, 0f)) } 
 
-	BoxWithConstraints(
+	var cursor by remember { mutableStateOf(Coordinates(0.0, 0.0)) }
+	var viewingRegion by remember(center, viewSize, zoom) {
+		val topLeft = Offset(
+			center.x - (viewSize.halfWidth  / tile_width),
+			center.y - (viewSize.halfHeight / tile_width)
+		)
+
+		val bottomRight = Offset(
+			center.x + (viewSize.halfWidth  / tile_width),
+			center.y + (viewSize.halfHeight / tile_width)
+		)
+
+		mutableStateOf(Region(
+			convertToLatLong(zoom.toInt(), topLeft),
+			convertToLatLong(zoom.toInt(), bottomRight)
+	))}
+
+	Box(
 		Modifier
 			.fillMaxWidth()
 			.fillMaxHeight()
@@ -135,12 +191,21 @@ fun App() {
 			.onPointerEvent(PointerEventType.Move) {
 				val position = it.changes.first().position
 
-				cursor = Offset(
+				val cursorOffset = Offset(
 					center.x + (position.x - viewSize.halfWidth)  / tile_width,
 					center.y + (position.y - viewSize.halfHeight) / tile_width
 				)
 
-				//println("Mouse at ${position} => cursor = ${cursor} vs center = ${center}")
+				cursor = convertToLatLong(zoom.toInt(), cursorOffset)
+				//val coords = convertToLatLong(zoom.toInt(), cursor)
+				//println("Mouse at ${coords}")
+			}
+
+			.onPointerEvent(PointerEventType.Scroll) {
+				val change = it.changes.first()
+				val value = change.scrollDelta.y.toInt().sign
+				center = if (value < 0) center.times(2f) else center.div(2f)
+				zoom -= value
 			}
 
 			.onSizeChanged { size ->
@@ -160,6 +225,33 @@ fun App() {
 					center,
 					viewSize)
 			}
+		}
+	}
+
+	Box(
+		Modifier
+			.fillMaxWidth()
+			.fillMaxHeight()
+	) {
+		CompositionLocalProvider(LocalCursor provides cursor) {
+			CompositionLocalProvider(LocalViewingRegion provides viewingRegion) {
+				children()
+			}
+		}
+	}
+}
+
+@Composable
+fun App() {
+	Karta() {
+		val cursor = LocalCursor.current
+		val viewingRegion = LocalViewingRegion.current
+
+		Column {
+			Text("${cursor.latitude}")
+			Text("${cursor.longitude}")
+			Text("${viewingRegion.topLeft}")
+			Text("${viewingRegion.bottomRight}")
 		}
 	}
 }
