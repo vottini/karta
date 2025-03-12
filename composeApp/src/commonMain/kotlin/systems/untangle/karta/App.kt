@@ -9,6 +9,7 @@ import kotlin.math.PI
 import coil3.compose.AsyncImage
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -92,8 +93,8 @@ data class Size(
 	val width: Int,
 	val height: Int
 ) {
-	val halfWidth: Int by lazy { width / 2 }
-	val halfHeight: Int by lazy { height / 2 }
+	val halfWidth: Float by lazy { width.toFloat() / 2f }
+	val halfHeight: Float by lazy { height.toFloat() / 2f }
 
 	override fun equals(o: Any?) : Boolean {
 		return (o is Size)
@@ -111,10 +112,20 @@ data class Coordinates(
 	val longitude: Double
 )
 
+fun Coordinates.minus(coords: Coordinates) : Coordinates {
+	return Coordinates(
+		coords.latitude - this.latitude,
+		coords.longitude - this.longitude
+	)
+}
+
 data class Region(
 	val topLeft: Coordinates,
 	val bottomRight: Coordinates
 )
+
+fun Region.deltaLatitude() = this.topLeft.latitude - this.bottomRight.latitude
+fun Region.deltaLongitude() = this.topLeft.longitude - this.bottomRight.longitude
 
 fun convertToLatLong(zoom: Int, tileCoords: Offset) : Coordinates {
 	val numberOfTiles = 2.0.pow(zoom)
@@ -122,6 +133,21 @@ fun convertToLatLong(zoom: Int, tileCoords: Offset) : Coordinates {
 	val latRadians = atan(sinh(PI * (1.0 - (2.0 * tileCoords.y / numberOfTiles))))
 	val latitude = (latRadians * 180.0) / PI
 	return Coordinates(latitude, longitude)
+}
+
+class Converter(viewingRegion: Region, viewSize: Size) {
+	val horizontalPixelDensity =  viewSize.width.toFloat() / viewingRegion.deltaLongitude()
+	val verticalPixelDensity = viewSize.height.toFloat() / viewingRegion.deltaLatitude()
+	val origin = viewingRegion.topLeft
+
+	fun convertToOffset(coords: Coordinates) : IntOffset {
+		val diff = coords.minus(origin)
+
+		return IntOffset(
+			(diff.longitude * horizontalPixelDensity).toInt(),
+			(diff.latitude * verticalPixelDensity).toInt()
+		)
+	}
 }
 
 const val tile_width = 512
@@ -145,9 +171,15 @@ fun Tile(zoom: Float, xIndex: Int, yIndex: Int, center: Offset, viewSize: Size) 
 }
 
 val LocalCursor = compositionLocalOf { Coordinates(0.0, 0.0) }
+
 val LocalViewingRegion = compositionLocalOf { Region(
 	Coordinates(0.0, 0.0),
 	Coordinates(0.0, 0.0)
+)}
+
+val LocalConverter = compositionLocalOf { Converter(
+	Region(Coordinates(1.0, 0.0), Coordinates(0.0, 1.0)),
+	Size(0, 0)
 )}
 
 @OptIn(
@@ -175,7 +207,15 @@ fun Karta(children: @Composable () -> Unit = {}) {
 		mutableStateOf(Region(
 			convertToLatLong(zoom.toInt(), topLeft),
 			convertToLatLong(zoom.toInt(), bottomRight)
-	))}
+		))
+	}
+
+	var converter by remember(viewingRegion, viewSize) {
+		mutableStateOf(Converter(
+			viewingRegion,
+			viewSize
+		))
+	}
 
 	Box(
 		Modifier
@@ -235,7 +275,9 @@ fun Karta(children: @Composable () -> Unit = {}) {
 	) {
 		CompositionLocalProvider(LocalCursor provides cursor) {
 			CompositionLocalProvider(LocalViewingRegion provides viewingRegion) {
-				children()
+				CompositionLocalProvider(LocalConverter provides converter) {
+					children()
+				}
 			}
 		}
 	}
@@ -246,12 +288,27 @@ fun App() {
 	Karta() {
 		val cursor = LocalCursor.current
 		val viewingRegion = LocalViewingRegion.current
+		val converter = LocalConverter.current
 
 		Column {
 			Text("${cursor.latitude}")
 			Text("${cursor.longitude}")
 			Text("${viewingRegion.topLeft}")
 			Text("${viewingRegion.bottomRight}")
+			Text("${converter.convertToOffset(cursor)}")
+		}
+
+		val ilhaBoi = remember { Coordinates(-20.310662, -40.2815008) }
+
+		Canvas(
+			modifier = Modifier
+				.offset { converter.convertToOffset(ilhaBoi) }
+				.size(5.dp)
+		) {
+			drawCircle(
+				color = Color.Blue,
+				radius = 10f
+			)
 		}
 	}
 }
