@@ -6,7 +6,12 @@ import kotlin.math.pow
 import kotlin.math.atan
 import kotlin.math.sinh
 import kotlin.math.PI
+
 import coil3.compose.AsyncImage
+import coil3.compose.LocalPlatformContext
+import coil3.request.ImageRequest
+import coil3.network.NetworkHeaders
+import coil3.network.httpHeaders
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
@@ -150,22 +155,42 @@ class Converter(viewingRegion: Region, viewSize: Size) {
 	}
 }
 
-const val tile_width = 512
-
 @Composable
-fun Tile(zoom: Float, xIndex: Int, yIndex: Int, center: Offset, viewSize: Size) {
-	val xOffset = viewSize.halfWidth  + (xIndex - center.x) * tile_width
-	val yOffset = viewSize.halfHeight + (yIndex - center.y) * tile_width
-	val sanedZoom = zoom.toInt()
+fun Tile(
+	zoom: Int,
+	xIndex: Int,
+	yIndex: Int,
+	center: Offset,
+	viewSize: Size,
+	tileSize: Int,
+	tileUrl: String)
+{
+	val formattedUrl = remember(zoom, xIndex, yIndex) { tileUrl
+		.replace("{zoom}", zoom.toString())
+		.replace("{x}", xIndex.toString())
+		.replace("{y}", yIndex.toString())
+	}
+
+	val xOffset = viewSize.halfWidth  + (xIndex - center.x) * tileSize
+	val yOffset = viewSize.halfHeight + (yIndex - center.y) * tileSize
+
+	val headers = NetworkHeaders.Builder()
+		.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
+		.set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0")
+		.set("Host", "tile.openstreetmap.org")
+		.build()
 	
 	Box(modifier = Modifier
 		.offset { IntOffset(xOffset.toInt(), yOffset.toInt()) }
 		.background(Color.Blue)
-		.size(tile_width.dp)
+		.size(tileSize.dp)
 	) {
 		AsyncImage(
-			model = "http://localhost:8077/${sanedZoom}/${xIndex}/${yIndex}",
-			contentDescription = ""
+			contentDescription = "",
+			model = ImageRequest.Builder(LocalPlatformContext.current)
+				.data(formattedUrl)
+				.httpHeaders(headers)
+				.build()
 		)
 	}
 }
@@ -187,21 +212,25 @@ val LocalConverter = compositionLocalOf { Converter(
 	ExperimentalComposeUiApi::class
 )
 @Composable
-fun Karta(children: @Composable () -> Unit = {}) {
+fun Karta(
+	tileUrl: String,
+	tileSize: Int = 256,
+	requestHeaders: String? = null,
+	children: @Composable () -> Unit = {})
+{
 	var zoom by remember { mutableStateOf(14f) }
 	var center by remember { mutableStateOf(Offset(6358.5f, 9136.5f)) }
 	var viewSize by remember { mutableStateOf(Size(0, 0)) }
 
-	var cursor by remember { mutableStateOf(Coordinates(0.0, 0.0)) }
 	var viewingRegion by remember(center, viewSize, zoom) {
 		val topLeft = Offset(
-			center.x - (viewSize.halfWidth  / tile_width),
-			center.y - (viewSize.halfHeight / tile_width)
+			center.x - (viewSize.halfWidth  / tileSize),
+			center.y - (viewSize.halfHeight / tileSize)
 		)
 
 		val bottomRight = Offset(
-			center.x + (viewSize.halfWidth  / tile_width),
-			center.y + (viewSize.halfHeight / tile_width)
+			center.x + (viewSize.halfWidth  / tileSize),
+			center.y + (viewSize.halfHeight / tileSize)
 		)
 
 		mutableStateOf(Region(
@@ -209,6 +238,8 @@ fun Karta(children: @Composable () -> Unit = {}) {
 			convertToLatLong(zoom.toInt(), bottomRight)
 		))
 	}
+
+	var cursor by remember { mutableStateOf(Coordinates(0.0, 0.0)) }
 
 	var converter by remember(viewingRegion, viewSize) {
 		mutableStateOf(Converter(
@@ -223,22 +254,17 @@ fun Karta(children: @Composable () -> Unit = {}) {
 			.fillMaxHeight()
 			.onDrag { dragged ->
 				center = Offset(
-					center.x - (dragged.x / tile_width),
-					center.y - (dragged.y / tile_width)
+					center.x - (dragged.x / tileSize),
+					center.y - (dragged.y / tileSize)
 				)
 			}
 
 			.onPointerEvent(PointerEventType.Move) {
 				val position = it.changes.first().position
-
-				val cursorOffset = Offset(
-					center.x + (position.x - viewSize.halfWidth)  / tile_width,
-					center.y + (position.y - viewSize.halfHeight) / tile_width
-				)
-
-				cursor = convertToLatLong(zoom.toInt(), cursorOffset)
-				//val coords = convertToLatLong(zoom.toInt(), cursor)
-				//println("Mouse at ${coords}")
+				cursor = convertToLatLong(zoom.toInt(), Offset(
+					center.x + (position.x - viewSize.halfWidth)  / tileSize,
+					center.y + (position.y - viewSize.halfHeight) / tileSize
+				))
 			}
 
 			.onPointerEvent(PointerEventType.Scroll) {
@@ -256,14 +282,16 @@ fun Karta(children: @Composable () -> Unit = {}) {
 			}
 	) {
 
-		for (x in -2..2) {
-			for (y in -2..2) {
+		for (x in -4..4) {
+			for (y in -4..4) {
 				Tile(
-					zoom,
+					zoom.toInt(),
 					center.x.toInt() + x,
 					center.y.toInt() + y,
 					center,
-					viewSize)
+					viewSize,
+					tileSize,
+					tileUrl)
 			}
 		}
 	}
@@ -283,9 +311,34 @@ fun Karta(children: @Composable () -> Unit = {}) {
 	}
 }
 
+
+@Composable
+fun Marker(coords: Coordinates) {
+	val converter = LocalConverter.current
+	val coordsOffset = remember(coords, converter) {
+		converter.convertToOffset(coords)
+	}
+
+	Canvas(
+		modifier = Modifier
+			.offset { coordsOffset }
+			.size(5.dp)
+	) {
+		drawCircle(
+			color = Color.Blue,
+			radius = 10f
+		)
+	}
+}
+
 @Composable
 fun App() {
-	Karta() {
+	Karta(
+		//tileUrl = "http://localhost:8077/%z/%x/%y",
+		//tileSize = 512
+		tileUrl = "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png",
+		tileSize = 256
+	) {
 		val cursor = LocalCursor.current
 		val viewingRegion = LocalViewingRegion.current
 		val converter = LocalConverter.current
@@ -299,17 +352,7 @@ fun App() {
 		}
 
 		val ilhaBoi = remember { Coordinates(-20.310662, -40.2815008) }
-
-		Canvas(
-			modifier = Modifier
-				.offset { converter.convertToOffset(ilhaBoi) }
-				.size(5.dp)
-		) {
-			drawCircle(
-				color = Color.Blue,
-				radius = 10f
-			)
-		}
+		Marker(ilhaBoi)
 	}
 }
 
