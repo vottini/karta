@@ -101,8 +101,8 @@ data class Size(
 	val width: Int,
 	val height: Int
 ) {
-	val halfWidth: Float by lazy { width.toFloat() / 2f }
-	val halfHeight: Float by lazy { height.toFloat() / 2f }
+	val halfWidth: Double by lazy { width.toDouble() / 2.0 }
+	val halfHeight: Double by lazy { height.toDouble() / 2.0 }
 
 	override fun equals(o: Any?) : Boolean {
 		return (o is Size)
@@ -133,7 +133,17 @@ data class Region(
 fun Region.deltaLatitude() = this.topLeft.latitude - this.bottomRight.latitude
 fun Region.deltaLongitude() = this.topLeft.longitude - this.bottomRight.longitude
 
-fun convertToLatLong(zoom: Int, tileCoords: Offset) : Coordinates {
+data class DoubleOffset(
+	val x: Double,
+	val y: Double
+)
+
+fun Offset.toDouble() = DoubleOffset(this.x.toDouble(), this.y.toDouble())
+fun DoubleOffset.toFloat() = Offset(this.x.toFloat(), this.y.toFloat())
+fun DoubleOffset.times(k: Double) = DoubleOffset(this.x * k, this.y * k)
+fun DoubleOffset.div(k: Double) = DoubleOffset(this.x / k, this.y / k)
+
+fun convertToLatLong(zoom: Int, tileCoords: DoubleOffset) : Coordinates {
 	val numberOfTiles = 2.0.pow(zoom)
 	val longitude = (tileCoords.x / numberOfTiles) * 360.0 - 180.0
 	val latRadians = atan(sinh(PI * (1.0 - (2.0 * tileCoords.y / numberOfTiles))))
@@ -141,7 +151,7 @@ fun convertToLatLong(zoom: Int, tileCoords: Offset) : Coordinates {
 	return Coordinates(latitude, longitude)
 }
 
-fun convertToTileCoords(zoom: Int, coords: Coordinates) : Offset {
+fun convertToTileCoords(zoom: Int, coords: Coordinates) : DoubleOffset {
 	val latitudeRads = (coords.latitude / 180.0) * PI
 	val secLatitude = 1.0 / cos(latitudeRads)
 	val tanLatitude = tan(latitudeRads)
@@ -150,14 +160,14 @@ fun convertToTileCoords(zoom: Int, coords: Coordinates) : Offset {
 	val xOffset = numberOfTiles * ((coords.longitude + 180.0) / 360.0)
 	val yOffset = numberOfTiles * (1.0 - (ln(tanLatitude + secLatitude) / PI)) / 2.0
 
-	return Offset(
-		xOffset.toFloat(),
-		yOffset.toFloat())
+	return DoubleOffset(
+		xOffset,
+		yOffset)
 }
 
 class Converter(viewingRegion: Region, viewSize: Size) {
-	val horizontalPixelDensity =  viewSize.width.toFloat() / viewingRegion.deltaLongitude()
-	val verticalPixelDensity = viewSize.height.toFloat() / viewingRegion.deltaLatitude()
+	val horizontalPixelDensity =  viewSize.width.toDouble() / viewingRegion.deltaLongitude()
+	val verticalPixelDensity = viewSize.height.toDouble() / viewingRegion.deltaLatitude()
 	val origin = viewingRegion.topLeft
 
 	fun convertToOffset(coords: Coordinates) : IntOffset {
@@ -175,7 +185,7 @@ fun Tile(
 	zoom: Int,
 	xIndex: Int,
 	yIndex: Int,
-	center: Offset,
+	center: DoubleOffset,
 	viewSize: Size,
 	tileServer: TileServer)
 {
@@ -306,12 +316,12 @@ fun KartaMap(
 
 	val tileSize = tileServer.tileSize
 	var viewingRegion by remember(center, viewSize, zoom) {
-		val topLeft = Offset(
+		val topLeft = DoubleOffset(
 			center.x - (viewSize.halfWidth  / tileSize),
 			center.y - (viewSize.halfHeight / tileSize)
 		)
 
-		val bottomRight = Offset(
+		val bottomRight = DoubleOffset(
 			center.x + (viewSize.halfWidth  / tileSize),
 			center.y + (viewSize.halfHeight / tileSize)
 		)
@@ -336,7 +346,7 @@ fun KartaMap(
 			.fillMaxWidth()
 			.fillMaxHeight()
 			.onDrag { dragged ->
-				center = Offset(
+				center = DoubleOffset(
 					center.x - (dragged.x / tileSize),
 					center.y - (dragged.y / tileSize)
 				)
@@ -344,7 +354,7 @@ fun KartaMap(
 
 			.onPointerEvent(PointerEventType.Move) {
 				val position = it.changes.first().position
-				cursor = convertToLatLong(zoom.toInt(), Offset(
+				cursor = convertToLatLong(zoom.toInt(), DoubleOffset(
 					center.x + (position.x - viewSize.halfWidth)  / tileSize,
 					center.y + (position.y - viewSize.halfHeight) / tileSize
 				))
@@ -353,7 +363,7 @@ fun KartaMap(
 			.onPointerEvent(PointerEventType.Scroll) {
 				val change = it.changes.first()
 				val value = change.scrollDelta.y.toInt().sign
-				center = if (value < 0) center.times(2f) else center.div(2f)
+				center = if (value < 0) center.times(2.0) else center.div(2.0)
 				zoom -= value
 			}
 	) {
