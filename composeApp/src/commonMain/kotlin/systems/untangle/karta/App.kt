@@ -3,6 +3,9 @@ package systems.untangle.karta
 import kotlin.io.println
 import kotlin.math.sign
 import kotlin.math.pow
+import kotlin.math.cos
+import kotlin.math.tan
+import kotlin.math.ln
 import kotlin.math.atan
 import kotlin.math.sinh
 import kotlin.math.PI
@@ -114,8 +117,7 @@ data class Size(
 
 data class Coordinates(
 	val latitude: Double,
-	val longitude: Double
-)
+	val longitude: Double)
 
 fun Coordinates.minus(coords: Coordinates) : Coordinates {
 	return Coordinates(
@@ -126,8 +128,7 @@ fun Coordinates.minus(coords: Coordinates) : Coordinates {
 
 data class Region(
 	val topLeft: Coordinates,
-	val bottomRight: Coordinates
-)
+	val bottomRight: Coordinates)
 
 fun Region.deltaLatitude() = this.topLeft.latitude - this.bottomRight.latitude
 fun Region.deltaLongitude() = this.topLeft.longitude - this.bottomRight.longitude
@@ -138,6 +139,20 @@ fun convertToLatLong(zoom: Int, tileCoords: Offset) : Coordinates {
 	val latRadians = atan(sinh(PI * (1.0 - (2.0 * tileCoords.y / numberOfTiles))))
 	val latitude = (latRadians * 180.0) / PI
 	return Coordinates(latitude, longitude)
+}
+
+fun convertToTileCoords(zoom: Int, coords: Coordinates) : Offset {
+	val latitudeRads = (coords.latitude / 180.0) * PI
+	val secLatitude = 1.0 / cos(latitudeRads)
+	val tanLatitude = tan(latitudeRads)
+
+	val numberOfTiles = 2.0.pow(zoom)
+	val xOffset = numberOfTiles * ((coords.longitude + 180.0) / 360.0)
+	val yOffset = numberOfTiles * (1.0 - (ln(tanLatitude + secLatitude) / PI)) / 2.0
+
+	return Offset(
+		xOffset.toFloat(),
+		yOffset.toFloat())
 }
 
 class Converter(viewingRegion: Region, viewSize: Size) {
@@ -162,17 +177,17 @@ fun Tile(
 	yIndex: Int,
 	center: Offset,
 	viewSize: Size,
-	tileSize: Int,
-	tileUrl: String)
+	tileServer: TileServer)
 {
-	val formattedUrl = remember(zoom, xIndex, yIndex) { tileUrl
-		.replace("{zoom}", zoom.toString())
-		.replace("{x}", xIndex.toString())
-		.replace("{y}", yIndex.toString())
+	val formattedUrl = remember(zoom, xIndex, yIndex) {
+		tileServer.tileUrl
+			.replace("{zoom}", zoom.toString())
+			.replace("{x}", xIndex.toString())
+			.replace("{y}", yIndex.toString())
 	}
 
-	val xOffset = viewSize.halfWidth  + (xIndex - center.x) * tileSize
-	val yOffset = viewSize.halfHeight + (yIndex - center.y) * tileSize
+	val xOffset = viewSize.halfWidth  + (xIndex - center.x) * tileServer.tileSize
+	val yOffset = viewSize.halfHeight + (yIndex - center.y) * tileServer.tileSize
 
 	val headers = NetworkHeaders.Builder()
 		.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
@@ -183,7 +198,7 @@ fun Tile(
 	Box(modifier = Modifier
 		.offset { IntOffset(xOffset.toInt(), yOffset.toInt()) }
 		.background(Color.Blue)
-		.size(tileSize.dp)
+		.size(tileServer.tileSize.dp)
 	) {
 		AsyncImage(
 			contentDescription = "",
@@ -207,21 +222,89 @@ val LocalConverter = compositionLocalOf { Converter(
 	Size(0, 0)
 )}
 
+data class Header(
+	val key: String,
+	val value: String)
+
+
+data class TileServer(
+	val tileUrl: String,
+	val tileSize: Int = 256,
+	val requestHeaders: List <Header>? = listOf()
+)
+
+val smapsServer = TileServer(
+	tileUrl = "http://localhost:8077/{zoom}/{x}/{y}",
+	tileSize = 512
+)
+
+val openStreetMapServer = TileServer(
+	tileUrl = "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png",
+	tileSize = 256,
+
+	requestHeaders = listOf(
+		Header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+		Header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0"),
+		Header("Host", "tile.openstreetmap.org")
+	)
+)
+
+@Composable
+fun Karta(
+	tileServer: TileServer,
+	initialCoords: Coordinates,
+	initialZoom: Int = 14,
+	requestHeaders: String? = null,
+	children: @Composable () -> Unit = {})
+{
+	var viewSize: Size? by remember { mutableStateOf(null) }
+
+	Box(
+		Modifier
+			.fillMaxWidth()
+			.fillMaxHeight()
+
+			.onSizeChanged { size ->
+				val newViewSize = Size(size.width, size.height)
+				if (newViewSize != viewSize) {
+					viewSize = newViewSize
+				}
+			}
+	) {
+		viewSize?.let { concreteSize ->
+			KartaMap(
+				tileServer,
+				initialZoom,
+				initialCoords,
+				concreteSize,
+				requestHeaders,
+				children
+			)
+		}
+	}
+}
+
 @OptIn(
 	ExperimentalFoundationApi::class,
 	ExperimentalComposeUiApi::class
 )
 @Composable
-fun Karta(
-	tileUrl: String,
-	tileSize: Int = 256,
-	requestHeaders: String? = null,
-	children: @Composable () -> Unit = {})
+fun KartaMap(
+	tileServer: TileServer,
+	initialZoom: Int,
+	initialCoords: Coordinates,
+	viewSize: Size,
+	requestHeaders: String?,
+	children: @Composable () -> Unit)
 {
-	var zoom by remember { mutableStateOf(14f) }
-	var center by remember { mutableStateOf(Offset(6358.5f, 9136.5f)) }
-	var viewSize by remember { mutableStateOf(Size(0, 0)) }
+	var zoom by remember { mutableStateOf(initialZoom) }
+	var center by remember { mutableStateOf(
+		convertToTileCoords(
+			initialZoom,
+			initialCoords))
+	}
 
+	val tileSize = tileServer.tileSize
 	var viewingRegion by remember(center, viewSize, zoom) {
 		val topLeft = Offset(
 			center.x - (viewSize.halfWidth  / tileSize),
@@ -273,25 +356,17 @@ fun Karta(
 				center = if (value < 0) center.times(2f) else center.div(2f)
 				zoom -= value
 			}
-
-			.onSizeChanged { size ->
-				val newViewSize = Size(size.width, size.height)
-				if (newViewSize != viewSize) {
-					viewSize = newViewSize
-				}
-			}
 	) {
 
-		for (x in -4..4) {
-			for (y in -4..4) {
+		for (x in -2..2) {
+			for (y in -2..2) {
 				Tile(
 					zoom.toInt(),
 					center.x.toInt() + x,
 					center.y.toInt() + y,
 					center,
 					viewSize,
-					tileSize,
-					tileUrl)
+					tileServer)
 			}
 		}
 	}
@@ -331,13 +406,14 @@ fun Marker(coords: Coordinates) {
 	}
 }
 
+val vitoriaHome = Coordinates(-20.295934, -40.347966)
+val ilhaBoi = Coordinates(-20.310662, -40.2815008)
+
 @Composable
 fun App() {
 	Karta(
-		//tileUrl = "http://localhost:8077/%z/%x/%y",
-		//tileSize = 512
-		tileUrl = "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png",
-		tileSize = 256
+		tileServer = smapsServer,
+		initialCoords = vitoriaHome,
 	) {
 		val cursor = LocalCursor.current
 		val viewingRegion = LocalViewingRegion.current
@@ -351,8 +427,7 @@ fun App() {
 			Text("${converter.convertToOffset(cursor)}")
 		}
 
-		val ilhaBoi = remember { Coordinates(-20.310662, -40.2815008) }
-		Marker(ilhaBoi)
+		Marker(vitoriaHome)
 	}
 }
 
