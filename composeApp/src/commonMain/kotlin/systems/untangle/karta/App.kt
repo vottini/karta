@@ -36,10 +36,13 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -118,6 +121,9 @@ data class Size(
 	}
 }
 
+fun Size.toIntOffset() : IntOffset = IntOffset(this.width, this.height)
+
+
 data class Coordinates(
 	val latitude: Double,
 	val longitude: Double)
@@ -168,17 +174,26 @@ fun convertToTileCoords(zoom: Int, coords: Coordinates) : DoubleOffset {
 		yOffset)
 }
 
-class Converter(viewingRegion: Region, viewSize: Size) {
+class Converter(val viewingRegion: Region, viewSize: Size) {
 	val horizontalPixelDensity =  viewSize.width.toDouble() / viewingRegion.deltaLongitude()
 	val verticalPixelDensity = viewSize.height.toDouble() / viewingRegion.deltaLatitude()
-	val origin = viewingRegion.topLeft
 
 	fun convertToOffset(coords: Coordinates) : IntOffset {
+		val origin = viewingRegion.topLeft
 		val diff = coords.minus(origin)
 
 		return IntOffset(
 			(diff.longitude * horizontalPixelDensity).toInt(),
 			(diff.latitude * verticalPixelDensity).toInt()
+		)
+	}
+
+	fun insideView(coords: Coordinates) : Boolean {
+		val (topLeft, bottomRight) = viewingRegion
+
+		return (
+			(coords.latitude in bottomRight.latitude..topLeft.latitude) &&
+			(coords.longitude in topLeft.longitude..bottomRight.longitude)
 		)
 	}
 }
@@ -205,10 +220,9 @@ fun Tile(
 	val yOffset = viewSize.halfHeight + (yIndex - center.y) * kartaTileSize
 
 	val headers = NetworkHeaders.Builder()
-		.set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-		.set("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0")
-		.set("Host", "tile.openstreetmap.org")
-		.build()
+	tileServer.requestHeaders.forEach { header ->
+		headers.set(header.key, header.value)
+	}
 	
 	Box(modifier = Modifier
 		.offset { IntOffset(xOffset.toInt(), yOffset.toInt()) }
@@ -221,7 +235,7 @@ fun Tile(
 			modifier = Modifier.height(kartaTileSize.dp).width(kartaTileSize.dp),
 			model = ImageRequest.Builder(LocalPlatformContext.current)
 				.data(formattedUrl)
-				.httpHeaders(headers)
+				.httpHeaders(headers.build())
 				.build()
 		)
 	}
@@ -247,19 +261,13 @@ data class Header(
 
 data class TileServer(
 	val tileUrl: String,
-	val tileSize: Int = 256,
-	val requestHeaders: List <Header>? = listOf()
+	val requestHeaders: List <Header> = listOf()
 )
 
-val smapsServer = TileServer(
-	tileUrl = "http://localhost:8077/{zoom}/{x}/{y}",
-	tileSize = 512
-)
+val smapsServer = TileServer("http://localhost:8077/{zoom}/{x}/{y}")
 
 val openStreetMapServer = TileServer(
 	tileUrl = "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png",
-	tileSize = 256,
-
 	requestHeaders = listOf(
 		Header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
 		Header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0"),
@@ -283,7 +291,7 @@ fun Karta(
 	initialCoords: Coordinates,
 	initialZoom: Int = 14,
 	requestHeaders: String? = null,
-	children: @Composable () -> Unit = {})
+	child: @Composable () -> Unit = {})
 {
 	var viewSize: Size? by remember { mutableStateOf(null) }
 
@@ -300,13 +308,13 @@ fun Karta(
 			}
 	) {
 		viewSize?.let { concreteSize ->
-			KartaMap(
+			KMap(
 				tileServer,
 				initialZoom,
 				initialCoords,
 				concreteSize,
 				requestHeaders,
-				children
+				child
 			)
 		}
 	}
@@ -317,13 +325,13 @@ fun Karta(
 	ExperimentalComposeUiApi::class
 )
 @Composable
-fun KartaMap(
+fun KMap(
 	tileServer: TileServer,
 	initialZoom: Int,
 	initialCoords: Coordinates,
 	viewSize: Size,
 	requestHeaders: String?,
-	children: @Composable () -> Unit)
+	child: @Composable () -> Unit)
 {
 	var zoom by remember { mutableStateOf(initialZoom) }
 	var center by remember { mutableStateOf(
@@ -411,7 +419,7 @@ fun KartaMap(
 			LocalViewingRegion provides viewingRegion,
 			LocalConverter provides converter
 		) {
-			children()
+			child()
 		}
 	}
 }
@@ -420,32 +428,88 @@ fun KartaMap(
 @Composable
 fun Marker(
 	coords: Coordinates,
+	offset: IntOffset? = null,
 	minZoom: Int = 13,
+	child: @Composable (coordsOffset: IntOffset) -> Unit = {}
 ) {
 	val zoom = LocalZoom.current
-	if (zoom < minZoom) {
-		return
-	}
-
 	val converter = LocalConverter.current
-	val coordsOffset = remember(coords, converter) {
-		converter.convertToOffset(coords)
+
+	val coordsOffset = remember(coords, converter, offset) {
+		val finalOffset = offset ?: IntOffset(0, 0)
+		converter.convertToOffset(coords).minus(finalOffset)
 	}
 
-	Canvas(
-		modifier = Modifier
-			.offset { coordsOffset }
-			.size(10.dp)
-	) {
-		drawCircle(
-			color = Color.Blue,
-			radius = 5f
-		)
+	if (zoom >= minZoom) {
+		child(coordsOffset)
+	}
+}
+
+@Composable
+fun Circle(
+	coords: Coordinates,
+	radius: Float,
+	borderWidth: Float = 0f,
+	borderColor: Color = Color.Black,
+	fillColor: Color? = Color.Black
+) {
+	Marker(coords) { coordsOffset ->
+		Canvas(modifier = Modifier.offset { coordsOffset }) {
+			if (null != fillColor) {
+				drawCircle(
+					color = fillColor,
+					radius = radius
+				)
+			}
+
+			if (borderWidth > 0) {
+				drawCircle(
+					color = borderColor,
+					style = Stroke(borderWidth),
+					radius = radius
+				)
+			}
+		}
+	}
+}
+
+@Composable
+fun Polyline(
+	coordsList: List <Coordinates>,
+	color: Color = Color.Black,
+	width: Float = 1.0f,
+	closed: Boolean = false
+) {
+	val converter = LocalConverter.current
+	val coordsListOffset = remember(coordsList, converter) {
+		coordsList.map { coords -> converter.convertToOffset(coords) }
+	}
+
+	for (i in 0 .. (coordsList.size-2)) {
+		val start = coordsListOffset.get(i)
+		val end = coordsListOffset.get(i+1)
+
+		Canvas(modifier = Modifier) {
+			drawLine(
+				color = color,
+				strokeWidth = width,
+				cap = StrokeCap.Round,
+				start = start.toOffset(),
+				end = end.toOffset()
+			)
+		}
 	}
 }
 
 val vitoriaHome = Coordinates(-20.295934, -40.347966)
 val ilhaBoi = Coordinates(-20.310662, -40.2815008)
+
+val rota = listOf(
+	Coordinates(-20.311070, -40.302298),
+	Coordinates(-20.307223, -40.302819),
+	Coordinates(-20.301494, -40.298605),
+	Coordinates(-20.287535, -40.304205)
+)
 
 @Composable
 fun App() {
@@ -479,8 +543,27 @@ fun App() {
 			}
 		}
 
-		Marker(vitoriaHome)
-		Marker(ilhaBoi)
+		for (k in 1..3) {
+			Circle(
+				coords = vitoriaHome,
+				radius = k.toFloat() * 55f,
+				borderWidth = 2f,
+				fillColor = null
+			)
+		}
+
+		Circle(
+			coords = ilhaBoi,
+			radius = 5f,
+			borderWidth = 1f,
+			fillColor = Color.Blue
+		)
+
+		Polyline(
+			coordsList = rota,
+			color = Color.Blue,
+			width = 5.0f
+		)
 	}
 }
 
