@@ -37,12 +37,15 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.toOffset
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.ExperimentalComposeUiApi
@@ -52,6 +55,9 @@ import androidx.compose.ui.layout.onSizeChanged
 
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+
+import karta.composeapp.generated.resources.Res
+import karta.composeapp.generated.resources.grid
 
 /**
  * 
@@ -226,12 +232,12 @@ fun Tile(
 	
 	Box(modifier = Modifier
 		.offset { IntOffset(xOffset.toInt(), yOffset.toInt()) }
-		.background(Color.Blue)
 		.size(kartaTileSize.dp)
 	) {
 		AsyncImage(
 			contentDescription = null,
 			contentScale = ContentScale.FillBounds,
+			placeholder = painterResource("composeResources/karta.composeapp.generated.resources/drawable/grid.png"),
 			modifier = Modifier.height(kartaTileSize.dp).width(kartaTileSize.dp),
 			model = ImageRequest.Builder(LocalPlatformContext.current)
 				.data(formattedUrl)
@@ -476,28 +482,55 @@ fun Circle(
 @Composable
 fun Polyline(
 	coordsList: List <Coordinates>,
-	color: Color = Color.Black,
-	width: Float = 1.0f,
+	strokeColor: Color = Color.Black,
+	strokeWidth: Float = 1.0f,
+	fillColor: Color? = null,
+	fillAlpha: Float = 1f,
 	closed: Boolean = false
 ) {
 	val converter = LocalConverter.current
-	val coordsListOffset = remember(coordsList, converter) {
-		coordsList.map { coords -> converter.convertToOffset(coords) }
-	}
+	val path = remember(coordsList, converter, closed) {
+		val offsets = coordsList.map { coords ->
+			val intOffset = converter.convertToOffset(coords)
+			intOffset.toOffset()
+		}
 
-	for (i in 0 .. (coordsList.size-2)) {
-		val start = coordsListOffset.get(i)
-		val end = coordsListOffset.get(i+1)
+		val newPath = Path()
+		val start = offsets.get(0)
+		newPath.moveTo(
+			start.x,
+			start.y
+		)
 
-		Canvas(modifier = Modifier) {
-			drawLine(
-				color = color,
-				strokeWidth = width,
-				cap = StrokeCap.Round,
-				start = start.toOffset(),
-				end = end.toOffset()
+		for (i in 1 .. offsets.size-1) {
+			val next = offsets.get(i)
+			newPath.lineTo(
+				next.x,
+				next.y
 			)
 		}
+
+		if (closed) newPath.close()
+		newPath
+	}
+
+	if (null != fillColor) {
+		Canvas(modifier = Modifier) {
+			drawPath(
+				path = path,
+				color = fillColor,
+				alpha = fillAlpha,
+				style = Fill
+			)
+		}
+	}
+
+	Canvas(modifier = Modifier) {
+		drawPath(
+			path = path,
+			color = strokeColor,
+			style = Stroke(strokeWidth)
+		)
 	}
 }
 
@@ -509,6 +542,16 @@ val rota = listOf(
 	Coordinates(-20.307223, -40.302819),
 	Coordinates(-20.301494, -40.298605),
 	Coordinates(-20.287535, -40.304205)
+)
+
+val aeroporto = listOf(
+	Coordinates(-20.265507, -40.296735),
+	Coordinates(-20.272795, -40.284709),
+	Coordinates(-20.271891, -40.283167),
+	Coordinates(-20.273302, -40.280667),
+	Coordinates(-20.269135, -40.274689),
+	Coordinates(-20.244144, -40.278206),
+	Coordinates(-20.242743, -40.280783)
 )
 
 @Composable
@@ -561,8 +604,15 @@ fun App() {
 
 		Polyline(
 			coordsList = rota,
-			color = Color.Blue,
-			width = 5.0f
+			strokeColor = Color.Blue,
+			strokeWidth = 5.0f
+		)
+
+		Polyline(
+			coordsList = aeroporto,
+			strokeColor = Color.Green,
+			fillColor = Color.Green,
+			fillAlpha = 0.6f
 		)
 	}
 }
