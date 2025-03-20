@@ -9,6 +9,8 @@ import kotlin.math.ln
 import kotlin.math.atan
 import kotlin.math.sinh
 import kotlin.math.PI
+import kotlin.math.max
+import kotlin.math.min
 
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
@@ -128,6 +130,7 @@ data class Size(
 }
 
 fun Size.toIntOffset() : IntOffset = IntOffset(this.width, this.height)
+fun Size.div(k: Int) = Size(this.width / k, this.width / k)
 
 
 data class Coordinates(
@@ -184,6 +187,11 @@ class Converter(val viewingRegion: Region, viewSize: Size) {
 	val horizontalPixelDensity =  viewSize.width.toDouble() / viewingRegion.deltaLongitude()
 	val verticalPixelDensity = viewSize.height.toDouble() / viewingRegion.deltaLatitude()
 
+	val tileRegion by lazy { TileRegion(
+		this.convertToOffset(viewingRegion.topLeft),
+		this.convertToOffset(viewingRegion.bottomRight)
+	)}
+
 	fun convertToOffset(coords: Coordinates) : IntOffset {
 		val origin = viewingRegion.topLeft
 		val diff = coords.minus(origin)
@@ -194,7 +202,16 @@ class Converter(val viewingRegion: Region, viewSize: Size) {
 		)
 	}
 
-	fun insideView(coords: Coordinates) : Boolean {
+	fun insideView(coords: Coordinates, extension: Size?) : Boolean {
+		if (null != extension) {
+			val apothems = extension.div(2)
+			val offset = this.convertToOffset(coords)
+			return this.tileRegion.intersects(TileRegion(
+				IntOffset(offset.x - apothems.width, offset.y - apothems.height),
+				IntOffset(offset.x + apothems.width, offset.y + apothems.height)
+			))
+		}
+
 		val (topLeft, bottomRight) = viewingRegion
 
 		return (
@@ -202,6 +219,58 @@ class Converter(val viewingRegion: Region, viewSize: Size) {
 			(coords.longitude in topLeft.longitude..bottomRight.longitude)
 		)
 	}
+}
+
+data class TileRegion(
+	val topLeft: IntOffset,
+	val bottomRight: IntOffset)
+
+/**
+ *
+ * .--------> (x)
+ * |
+ * |
+ * V
+ *
+ * (y)
+
+ * Sq1 = (A,B)
+ * Sq2 = (C,D)
+ *                          ProjY(1)
+ *  A-----------.             _ 
+ *  |           |             {   ProjY(2)
+ *  |      C----+-----.       } . .  _ . . _
+ *  |      |    |     |       {      {     }   IntercY(1,2)
+ *  |      |    |     |       }      }     {
+ *  '------+----B     |       - . .  { . . -
+ *         |          |              }
+ *         '----------D              -
+ *
+ *
+ *  |~~~~~~~~~~| ProjX(1)
+ *         '   '
+ *         '   '
+ *         |~~~~~~~~~~| ProjX(2)
+ *         '   '
+ *         '   '
+ *         (~~~) IntercX(1,2)
+ */
+
+fun TileRegion.intersects(other: TileRegion) : Boolean {
+	val topLeftIntersection = IntOffset(
+		max(this.topLeft.x, other.topLeft.x),
+		max(this.topLeft.y, other.topLeft.y)
+	)
+
+	val bottomRightIntersection = IntOffset(
+		min(this.bottomRight.x, other.bottomRight.x),
+		min(this.bottomRight.y, other.bottomRight.y)
+	)
+
+	return (
+		(bottomRightIntersection.x > topLeftIntersection.x) &&
+		(bottomRightIntersection.y > topLeftIntersection.y)
+	)
 }
 
 const val kartaTileSize = 256
@@ -436,6 +505,7 @@ fun Marker(
 	coords: Coordinates,
 	offset: IntOffset? = null,
 	minZoom: Int = 13,
+	extension: Size? = null,
 	child: @Composable (coordsOffset: IntOffset) -> Unit = {}
 ) {
 	val zoom = LocalZoom.current
@@ -447,7 +517,9 @@ fun Marker(
 	}
 
 	if (zoom >= minZoom) {
-		child(coordsOffset)
+		if (converter.insideView(coords, extension)) {
+			child(coordsOffset)
+		}
 	}
 }
 
@@ -459,7 +531,13 @@ fun Circle(
 	borderColor: Color = Color.Black,
 	fillColor: Color? = Color.Black
 ) {
-	Marker(coords) { coordsOffset ->
+	Marker(
+		coords = coords,
+		extension = Size(
+			(2f * radius).toInt(),
+			(2f * radius).toInt()
+		)
+	) { coordsOffset ->
 		Canvas(modifier = Modifier.offset { coordsOffset }) {
 			if (null != fillColor) {
 				drawCircle(
@@ -489,29 +567,60 @@ fun Polyline(
 	closed: Boolean = false
 ) {
 	val converter = LocalConverter.current
-	val path = remember(coordsList, converter, closed) {
-		val offsets = coordsList.map { coords ->
+	val offsets = remember(coordsList, converter) {
+		coordsList.map { coords ->
 			val intOffset = converter.convertToOffset(coords)
 			intOffset.toOffset()
 		}
+	}
 
+	val path = remember(offsets, closed) {
 		val newPath = Path()
-		val start = offsets.get(0)
-		newPath.moveTo(
-			start.x,
-			start.y
-		)
 
-		for (i in 1 .. offsets.size-1) {
-			val next = offsets.get(i)
-			newPath.lineTo(
-				next.x,
-				next.y
+		if (offsets != null && offsets.size > 0) {
+			val start = offsets.get(0)
+			newPath.moveTo(
+				start.x,
+				start.y
 			)
+
+			for (i in 1 .. offsets.size-1) {
+				val next = offsets.get(i)
+				newPath.lineTo(
+					next.x,
+					next.y
+				)
+			}
+
+			if (closed && offsets.size > 2) {
+				newPath.close()
+			}
 		}
 
-		if (closed) newPath.close()
 		newPath
+	}
+
+	val polylineBoundaries = remember(offsets) {
+		var xMin = converter.tileRegion.bottomRight.x
+		var yMin = converter.tileRegion.bottomRight.y
+		var xMax = converter.tileRegion.topLeft.x
+		var yMax = converter.tileRegion.topLeft.y
+
+		offsets.forEach { offset ->
+			xMin = min(xMin, offset.x.toInt())
+			yMin = min(yMin, offset.y.toInt())
+			xMax = max(xMax, offset.x.toInt())
+			yMax = max(yMax, offset.y.toInt())
+		}
+
+		TileRegion(
+			IntOffset(xMin, yMin),
+			IntOffset(xMax, yMax)
+		)
+	}
+
+	if (!converter.tileRegion.intersects(polylineBoundaries)) {
+		return
 	}
 
 	if (null != fillColor) {
