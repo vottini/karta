@@ -340,6 +340,7 @@ data class TileServer(
 )
 
 val smapsServer = TileServer("http://localhost:8077/{zoom}/{x}/{y}")
+val googleSatelliteServer = TileServer("https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={zoom}")
 
 val openStreetMapServer = TileServer(
 	tileUrl = "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png",
@@ -356,7 +357,8 @@ data class TileServerOption(
 
 val tileServerOptions = listOf(
 	TileServerOption("SMAPS", smapsServer),
-	TileServerOption("OpenStreetMaps", openStreetMapServer)
+	TileServerOption("OpenStreetMaps", openStreetMapServer),
+	TileServerOption("Google Satellite", googleSatelliteServer)
 )
 
 
@@ -524,6 +526,53 @@ fun Marker(
 }
 
 @Composable
+fun Pin(
+	coords: Coordinates,
+	dimensions: Size,
+	path: String
+) {
+	val painter = painterResource(path)
+	val pinSize = remember(painter, dimensions) {
+		val (width, height) = painter.intrinsicSize
+
+		if (width > height) {
+			val aspectRatio = height.toFloat() / width.toFloat()
+			val proportionalWidth = (dimensions.width * aspectRatio).toInt()
+			Size(proportionalWidth, dimensions.height)
+		}
+
+		else {
+			val aspectRatio = width.toFloat() / height.toFloat()
+			val proportionalHeight = (dimensions.height * aspectRatio).toInt()
+			Size(dimensions.width, proportionalHeight)
+		}
+	}
+
+	Marker(
+		coords = coords,
+		extension = Size(
+			pinSize.width,
+			pinSize.height * 2
+		)
+	) { coordsOffset ->
+		val compensedOffset = IntOffset(
+			coordsOffset.x - (pinSize.width / 2).toInt(),
+			coordsOffset.y - pinSize.height
+		)
+
+		Image(
+			modifier = Modifier
+				.offset { compensedOffset }
+				.width(pinSize.width.dp)
+				.height(pinSize.height.dp),
+
+			painter = painter,
+			contentDescription = null
+		)
+	}
+}
+
+@Composable
 fun Circle(
 	coords: Coordinates,
 	radius: Float,
@@ -643,7 +692,8 @@ fun Polyline(
 	}
 }
 
-val vitoriaHome = Coordinates(-20.295934, -40.347966)
+val home = Coordinates(-20.296099, -40.348038)
+val cefet = Coordinates(-20.310563, -40.318772)
 val ilhaBoi = Coordinates(-20.310662, -40.2815008)
 
 val rota = listOf(
@@ -670,7 +720,7 @@ fun App() {
 
 	Karta(
 		tileServer = selectedTileServer.server,
-		initialCoords = vitoriaHome,
+		initialCoords = home,
 	) {
 		val cursor = LocalCursor.current
 		val viewingRegion = LocalViewingRegion.current
@@ -695,9 +745,15 @@ fun App() {
 			}
 		}
 
+		Pin(
+			coords = home,
+			dimensions = Size(40, 40),
+			path = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
+		)
+
 		for (k in 1..3) {
 			Circle(
-				coords = vitoriaHome,
+				coords = home,
 				radius = k.toFloat() * 55f,
 				borderWidth = 2f,
 				fillColor = null
@@ -709,6 +765,12 @@ fun App() {
 			radius = 5f,
 			borderWidth = 1f,
 			fillColor = Color.Blue
+		)
+
+		Pin(
+			coords = cefet,
+			dimensions = Size(50, 50),
+			path = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
 		)
 
 		Polyline(

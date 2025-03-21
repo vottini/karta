@@ -1,3 +1,4 @@
+
 rootProject.name = "Karta"
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
@@ -29,3 +30,4 @@ dependencyResolutionManagement {
 }
 
 include(":composeApp")
+
