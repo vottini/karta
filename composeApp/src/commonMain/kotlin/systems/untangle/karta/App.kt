@@ -11,6 +11,7 @@ import kotlin.math.sinh
 import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.abs
 
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
@@ -183,8 +184,8 @@ fun convertToTileCoords(zoom: Int, coords: Coordinates) : DoubleOffset {
 		yOffset)
 }
 
-class Converter(val viewingRegion: Region, viewSize: Size) {
-	val horizontalPixelDensity =  viewSize.width.toDouble() / viewingRegion.deltaLongitude()
+class Converter(val viewingRegion: Region, val viewSize: Size) {
+	val horizontalPixelDensity = viewSize.width.toDouble() / viewingRegion.deltaLongitude()
 	val verticalPixelDensity = viewSize.height.toDouble() / viewingRegion.deltaLatitude()
 
 	val tileRegion by lazy { TileRegion(
@@ -218,6 +219,11 @@ class Converter(val viewingRegion: Region, viewSize: Size) {
 			(coords.latitude in bottomRight.latitude..topLeft.latitude) &&
 			(coords.longitude in topLeft.longitude..bottomRight.longitude)
 		)
+	}
+
+	fun metersToPixels(distanceInMeters: Float) : Float {
+		val angle = distanceInMeters / earthRadiusMeters
+		return abs(angle * horizontalPixelDensity / degreesToRadians).toFloat()
 	}
 }
 
@@ -274,6 +280,8 @@ fun TileRegion.intersects(other: TileRegion) : Boolean {
 }
 
 const val kartaTileSize = 256
+const val earthRadiusMeters = 6378137.0
+const val degreesToRadians = PI / 180.0
 
 @Composable
 fun Tile(
@@ -572,26 +580,40 @@ fun Pin(
 	}
 }
 
+enum class DistanceUnit {
+	METERS,
+	PIXELS
+}
+
 @Composable
 fun Circle(
 	coords: Coordinates,
 	radius: Float,
+	radiusUnit: DistanceUnit = DistanceUnit.PIXELS,
 	borderWidth: Float = 0f,
 	borderColor: Color = Color.Black,
 	fillColor: Color? = Color.Black
 ) {
+	val converter = LocalConverter.current
+	val radiusInPixels = remember(radius, radiusUnit, converter) {
+		when (radiusUnit) {
+			DistanceUnit.METERS -> converter.metersToPixels(radius)
+			DistanceUnit.PIXELS -> radius
+		}
+	}
+
 	Marker(
 		coords = coords,
 		extension = Size(
-			(2f * radius).toInt(),
-			(2f * radius).toInt()
+			(2f * radiusInPixels).toInt(),
+			(2f * radiusInPixels).toInt()
 		)
 	) { coordsOffset ->
 		Canvas(modifier = Modifier.offset { coordsOffset }) {
 			if (null != fillColor) {
 				drawCircle(
 					color = fillColor,
-					radius = radius
+					radius = radiusInPixels
 				)
 			}
 
@@ -599,7 +621,7 @@ fun Circle(
 				drawCircle(
 					color = borderColor,
 					style = Stroke(borderWidth),
-					radius = radius
+					radius = radiusInPixels
 				)
 			}
 		}
@@ -754,7 +776,8 @@ fun App() {
 		for (k in 1..3) {
 			Circle(
 				coords = home,
-				radius = k.toFloat() * 55f,
+				radius = k * 500f,
+				radiusUnit = DistanceUnit.METERS,
 				borderWidth = 2f,
 				fillColor = null
 			)
@@ -762,7 +785,7 @@ fun App() {
 
 		Circle(
 			coords = ilhaBoi,
-			radius = 5f,
+			radius = 10f,
 			borderWidth = 1f,
 			fillColor = Color.Blue
 		)
