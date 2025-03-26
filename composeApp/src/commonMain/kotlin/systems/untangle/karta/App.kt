@@ -13,6 +13,9 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.abs
 
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
 import coil3.request.ImageRequest
@@ -56,6 +59,7 @@ import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.layout.onSizeChanged
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
 
@@ -147,7 +151,8 @@ fun Coordinates.minus(coords: Coordinates) : Coordinates {
 
 data class Region(
 	val topLeft: Coordinates,
-	val bottomRight: Coordinates)
+	val bottomRight: Coordinates
+)
 
 fun Region.deltaLatitude() = this.topLeft.latitude - this.bottomRight.latitude
 fun Region.deltaLongitude() = this.topLeft.longitude - this.bottomRight.longitude
@@ -207,6 +212,7 @@ class Converter(val viewingRegion: Region, val viewSize: Size) {
 		if (null != extension) {
 			val apothems = extension.div(2)
 			val offset = this.convertToOffset(coords)
+
 			return this.tileRegion.intersects(TileRegion(
 				IntOffset(offset.x - apothems.width, offset.y - apothems.height),
 				IntOffset(offset.x + apothems.width, offset.y + apothems.height)
@@ -223,13 +229,23 @@ class Converter(val viewingRegion: Region, val viewSize: Size) {
 
 	fun metersToPixels(distanceInMeters: Float) : Float {
 		val angle = distanceInMeters / earthRadiusMeters
-		return abs(angle * horizontalPixelDensity / degreesToRadians).toFloat()
+		return abs(angle * horizontalPixelDensity * radiansToDegrees).toFloat()
 	}
 }
 
 data class TileRegion(
 	val topLeft: IntOffset,
-	val bottomRight: IntOffset)
+	val bottomRight: IntOffset
+)
+
+fun defineTileRegion(base: IntOffset, dimensions: Size) : TileRegion {
+	return TileRegion(
+		IntOffset(base.x - dimensions.width, base.y - dimensions.height),
+		IntOffset(base.x + dimensions.width, base.y + dimensions.height)
+	)
+}
+
+fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 
 /**
  *
@@ -281,7 +297,7 @@ fun TileRegion.intersects(other: TileRegion) : Boolean {
 
 const val kartaTileSize = 256
 const val earthRadiusMeters = 6378137.0
-const val degreesToRadians = PI / 180.0
+const val radiansToDegrees = 180.0 / PI
 
 @Composable
 fun Tile(
@@ -324,6 +340,16 @@ fun Tile(
 	}
 }
 
+class PointerFlows(
+	mutableMoveFlow: MutableSharedFlow <PointerEvent>,
+	mutableClickFlow: MutableSharedFlow <PointerEvent>
+) {
+	val moveFlow: SharedFlow <PointerEvent> = mutableMoveFlow
+	val clickFlow: SharedFlow <PointerEvent> = mutableClickFlow
+}
+
+/* ------------------------------------------------------------------------- */
+
 val LocalCursor = compositionLocalOf { Coordinates(0.0, 0.0) }
 val LocalZoom = compositionLocalOf { 14 }
 
@@ -337,36 +363,21 @@ val LocalConverter = compositionLocalOf { Converter(
 	Size(0, 0)
 )}
 
+val LocalPointerEvents = compositionLocalOf { PointerFlows(
+	MutableSharedFlow <PointerEvent> (),
+	MutableSharedFlow <PointerEvent> ()
+)}
+
+/* ------------------------------------------------------------------------- */
+
 data class Header(
 	val key: String,
-	val value: String)
-
+	val value: String
+)
 
 data class TileServer(
 	val tileUrl: String,
 	val requestHeaders: List <Header> = listOf()
-)
-
-val smapsServer = TileServer("http://localhost:8077/{zoom}/{x}/{y}")
-val googleSatelliteServer = TileServer("https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={zoom}")
-
-val openStreetMapServer = TileServer(
-	tileUrl = "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png",
-	requestHeaders = listOf(
-		Header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
-		Header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0"),
-		Header("Host", "tile.openstreetmap.org")
-	)
-)
-
-data class TileServerOption(
-	val name: String,
-	val server: TileServer)
-
-val tileServerOptions = listOf(
-	TileServerOption("SMAPS", smapsServer),
-	TileServerOption("OpenStreetMaps", openStreetMapServer),
-	TileServerOption("Google Satellite", googleSatelliteServer)
 )
 
 
@@ -376,7 +387,7 @@ fun Karta(
 	initialCoords: Coordinates,
 	initialZoom: Int = 14,
 	requestHeaders: String? = null,
-	child: @Composable () -> Unit = {})
+	content: @Composable () -> Unit = {})
 {
 	var viewSize: Size? by remember { mutableStateOf(null) }
 
@@ -399,11 +410,26 @@ fun Karta(
 				initialCoords,
 				concreteSize,
 				requestHeaders,
-				child
+				content
 			)
 		}
 	}
 }
+
+data class PointerEvent(
+	val coordinates: Coordinates,
+	val position: Offset
+)
+
+fun PointerEvent.isInside(tileRegion: TileRegion) : Boolean {
+	val (x, y) = this.position
+
+	return (
+		x.toInt() in tileRegion.topLeft.x..tileRegion.bottomRight.x &&
+		y.toInt() in tileRegion.topLeft.y..tileRegion.bottomRight.y
+	)
+}
+
 
 @OptIn(
 	ExperimentalFoundationApi::class,
@@ -416,7 +442,7 @@ fun KMap(
 	initialCoords: Coordinates,
 	viewSize: Size,
 	requestHeaders: String?,
-	child: @Composable () -> Unit)
+	content: @Composable () -> Unit)
 {
 	var zoom by remember { mutableStateOf(initialZoom) }
 	var center by remember { mutableStateOf(
@@ -451,6 +477,15 @@ fun KMap(
 		))
 	}
 
+	val moveFlow = remember { MutableSharedFlow <PointerEvent> (extraBufferCapacity = 1) }
+	val clickFlow = remember { MutableSharedFlow <PointerEvent> (extraBufferCapacity = 1) }
+
+	val pointerEvents = remember(moveFlow, clickFlow) {
+		PointerFlows(
+			moveFlow,
+			clickFlow
+	)}
+
 	Box(
 		Modifier
 			.fillMaxWidth()
@@ -468,6 +503,13 @@ fun KMap(
 					center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
 					center.y + (position.y - viewSize.halfHeight) / kartaTileSize
 				))
+
+				moveFlow.tryEmit(
+					PointerEvent(
+						cursor,
+						position
+					)
+				)
 			}
 
 			.onPointerEvent(PointerEventType.Scroll) {
@@ -502,9 +544,10 @@ fun KMap(
 			LocalZoom provides zoom,
 			LocalCursor provides cursor,
 			LocalViewingRegion provides viewingRegion,
-			LocalConverter provides converter
+			LocalConverter provides converter,
+			LocalPointerEvents provides pointerEvents
 		) {
-			child()
+			content()
 		}
 	}
 }
@@ -516,19 +559,21 @@ fun Marker(
 	offset: IntOffset? = null,
 	minZoom: Int = 13,
 	extension: Size? = null,
-	child: @Composable (coordsOffset: IntOffset) -> Unit = {}
+	onClick: () -> Unit = {},
+	content: @Composable (coordsOffset: IntOffset) -> Unit
 ) {
 	val zoom = LocalZoom.current
 	val converter = LocalConverter.current
 
 	val coordsOffset = remember(coords, converter, offset) {
 		val finalOffset = offset ?: IntOffset(0, 0)
-		converter.convertToOffset(coords).minus(finalOffset)
+		converter.convertToOffset(coords)
+			.minus(finalOffset)
 	}
 
 	if (zoom >= minZoom) {
 		if (converter.insideView(coords, extension)) {
-			child(coordsOffset)
+			content(coordsOffset)
 		}
 	}
 }
@@ -537,9 +582,12 @@ fun Marker(
 fun Pin(
 	coords: Coordinates,
 	dimensions: Size,
-	path: String
+	path: String = "composeResources/karta.composeapp.generated.resources/drawable/pin.png",
+	hovered: String = "composeResources/karta.composeapp.generated.resources/drawable/bluePin.png",
 ) {
 	val painter = painterResource(path)
+	val hoveredPainter = painterResource(hovered)
+
 	val pinSize = remember(painter, dimensions) {
 		val (width, height) = painter.intrinsicSize
 
@@ -563,10 +611,26 @@ fun Pin(
 			pinSize.height * 2
 		)
 	) { coordsOffset ->
-		val compensedOffset = IntOffset(
+		val pointerEvents = LocalPointerEvents.current
+		val compensedOffset = remember(coordsOffset, pinSize) { IntOffset(
 			coordsOffset.x - (pinSize.width / 2).toInt(),
 			coordsOffset.y - pinSize.height
-		)
+		)}
+
+		var isHovered by remember { mutableStateOf(false) }
+		val ownExtension = remember(coordsOffset, pinSize) {
+			val halfSize = pinSize.div(2)
+
+			defineTileRegion(
+				coordsOffset.minus(0, halfSize.height),
+				halfSize)
+		}
+
+		LaunchedEffect(pointerEvents, ownExtension) {
+			pointerEvents.moveFlow.collect { event -> 
+				isHovered = event.isInside(ownExtension)
+			}
+		}
 
 		Image(
 			modifier = Modifier
@@ -574,7 +638,7 @@ fun Pin(
 				.width(pinSize.width.dp)
 				.height(pinSize.height.dp),
 
-			painter = painter,
+			painter = if (isHovered) hoveredPainter else painter,
 			contentDescription = null
 		)
 	}
@@ -735,6 +799,29 @@ val aeroporto = listOf(
 	Coordinates(-20.242743, -40.280783)
 )
 
+val smapsServer = TileServer("http://localhost:8077/{zoom}/{x}/{y}")
+val googleSatelliteServer = TileServer("https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={zoom}")
+
+val openStreetMapServer = TileServer(
+	tileUrl = "https://tile.openstreetmap.org/{zoom}/{x}/{y}.png",
+	requestHeaders = listOf(
+		Header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+		Header("User-Agent", "Mozilla/5.0 (X11; Linux x86_64; rv:136.0) Gecko/20100101 Firefox/136.0"),
+		Header("Host", "tile.openstreetmap.org")
+	)
+)
+
+data class TileServerOption(
+	val name: String,
+	val server: TileServer)
+
+val tileServerOptions = listOf(
+	TileServerOption("SMAPS", smapsServer),
+	TileServerOption("OpenStreetMaps", openStreetMapServer),
+	TileServerOption("Google Satellite", googleSatelliteServer)
+)
+
+
 @Composable
 fun App() {
 	var tileServerIndex by remember { mutableStateOf(0) }
@@ -769,8 +856,7 @@ fun App() {
 
 		Pin(
 			coords = home,
-			dimensions = Size(40, 40),
-			path = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
+			dimensions = Size(40, 40)
 		)
 
 		for (k in 1..3) {
@@ -792,8 +878,7 @@ fun App() {
 
 		Pin(
 			coords = cefet,
-			dimensions = Size(50, 50),
-			path = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
+			dimensions = Size(50, 50)
 		)
 
 		Polyline(
