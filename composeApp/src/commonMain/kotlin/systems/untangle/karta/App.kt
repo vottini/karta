@@ -1,6 +1,10 @@
 package systems.untangle.karta
 
 import kotlin.io.println
+import kotlin.time.TimeSource
+import kotlin.time.TimeSource.Monotonic
+import kotlin.time.TimeMark
+
 import kotlin.math.sign
 import kotlin.math.pow
 import kotlin.math.cos
@@ -13,6 +17,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.abs
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
 
@@ -56,7 +62,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.input.pointer.onPointerEvent
+import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventType
+import androidx.compose.ui.input.pointer.PointerButtons
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+import androidx.compose.ui.input.pointer.isSecondaryPressed
+import androidx.compose.ui.input.pointer.isTertiaryPressed
 import androidx.compose.ui.layout.onSizeChanged
 
 import androidx.compose.runtime.LaunchedEffect
@@ -340,14 +351,6 @@ fun Tile(
 	}
 }
 
-class PointerFlows(
-	mutableMoveFlow: MutableSharedFlow <PointerEvent>,
-	mutableClickFlow: MutableSharedFlow <PointerEvent>
-) {
-	val moveFlow: SharedFlow <PointerEvent> = mutableMoveFlow
-	val clickFlow: SharedFlow <PointerEvent> = mutableClickFlow
-}
-
 /* ------------------------------------------------------------------------- */
 
 val LocalCursor = compositionLocalOf { Coordinates(0.0, 0.0) }
@@ -364,8 +367,8 @@ val LocalConverter = compositionLocalOf { Converter(
 )}
 
 val LocalPointerEvents = compositionLocalOf { PointerFlows(
-	MutableSharedFlow <PointerEvent> (),
-	MutableSharedFlow <PointerEvent> ()
+	MutableSharedFlow <PointerPosition> (),
+	MutableSharedFlow <ButtonEvent> ()
 )}
 
 /* ------------------------------------------------------------------------- */
@@ -416,12 +419,87 @@ fun Karta(
 	}
 }
 
-data class PointerEvent(
+/* -------------------------------------------------------------------------- */
+
+enum class PointerButton {
+	LEFT,
+	RIGHT,
+	WHEEL,
+	OTHER
+}
+
+fun trackButton(buttons: PointerButtons) : PointerButton {
+	return when {
+		buttons.isPrimaryPressed -> PointerButton.LEFT
+		buttons.isSecondaryPressed -> PointerButton.RIGHT
+		buttons.isTertiaryPressed -> PointerButton.WHEEL
+		else -> PointerButton.OTHER
+	}
+}
+
+enum class ButtonAction {
+	PRESS,
+	RELEASE
+}
+
+data class ButtonEvent (
+	val button: PointerButton,
+	val action: ButtonAction
+)
+
+data class PointerPosition(
 	val coordinates: Coordinates,
 	val position: Offset
 )
 
-fun PointerEvent.isInside(tileRegion: TileRegion) : Boolean {
+class PointerFlows(
+	mutableMoveFlow: MutableSharedFlow <PointerPosition>,
+	mutableClickFlow: MutableSharedFlow <ButtonEvent>
+) {
+	val moveFlow: SharedFlow <PointerPosition> = mutableMoveFlow
+	val clickFlow: SharedFlow <ButtonEvent> = mutableClickFlow
+}
+
+enum class PointerAction {
+	MOVE,
+	SINGLE_CLICK,
+	DOUBLE_CLICK,
+	LONG_CLICK,
+	DRAG
+}
+
+enum class PointerState {
+	IDLE,
+	MOVING,
+	CLICKED,
+	RELEASED
+}
+
+class PointerMonitor(val pointerFlows: PointerFlows) {
+	var clicked : Boolean = false
+	var lastClick : TimeMark? = null
+	var lastRelease : TimeMark? = null
+	var lastMove : TimeMark? = null
+	
+	fun listen(scope: CoroutineScope) {
+		scope.launch {
+			pointerFlows.moveFlow.collect { event -> 
+				lastMove = TimeSource.Monotonic.markNow()
+				println("FROM INSIDE PointerMonitor = ${event}")
+			}
+		}
+
+		scope.launch {
+			pointerFlows.clickFlow.collect { event -> 
+				println("FROM INSIDE PointerMonitor = ${event}")
+			}
+		}
+	}
+
+}
+
+
+fun PointerPosition.isInside(tileRegion: TileRegion) : Boolean {
 	val (x, y) = this.position
 
 	return (
@@ -430,6 +508,7 @@ fun PointerEvent.isInside(tileRegion: TileRegion) : Boolean {
 	)
 }
 
+/* -------------------------------------------------------------------------- */
 
 @OptIn(
 	ExperimentalFoundationApi::class,
@@ -477,14 +556,19 @@ fun KMap(
 		))
 	}
 
-	val moveFlow = remember { MutableSharedFlow <PointerEvent> (extraBufferCapacity = 1) }
-	val clickFlow = remember { MutableSharedFlow <PointerEvent> (extraBufferCapacity = 1) }
+	val moveFlow = remember { MutableSharedFlow <PointerPosition> (extraBufferCapacity = 1) }
+	val clickFlow = remember { MutableSharedFlow <ButtonEvent> (extraBufferCapacity = 1) }
 
 	val pointerEvents = remember(moveFlow, clickFlow) {
 		PointerFlows(
 			moveFlow,
 			clickFlow
 	)}
+
+	LaunchedEffect(pointerEvents) {
+		val monitor = PointerMonitor(pointerEvents)
+		monitor.listen(this)
+	}
 
 	Box(
 		Modifier
@@ -497,23 +581,40 @@ fun KMap(
 				)
 			}
 
-			.onPointerEvent(PointerEventType.Move) {
-				val position = it.changes.first().position
+			.onPointerEvent(PointerEventType.Press) { event ->
+				clickFlow.tryEmit(ButtonEvent(
+					trackButton(event.buttons),
+					ButtonAction.PRESS)
+				)
+
+				println("CLICK PRESS ${event}")
+			}
+
+			.onPointerEvent(PointerEventType.Release) { event ->
+				clickFlow.tryEmit(ButtonEvent(
+					trackButton(event.buttons),
+					ButtonAction.RELEASE)
+				)
+				println("CLICK RELEASE ${event}")
+			}
+
+			.onPointerEvent(PointerEventType.Move) { event ->
+				val position = event.changes.first().position
 				cursor = convertToLatLong(zoom.toInt(), DoubleOffset(
 					center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
 					center.y + (position.y - viewSize.halfHeight) / kartaTileSize
 				))
 
 				moveFlow.tryEmit(
-					PointerEvent(
+					PointerPosition(
 						cursor,
 						position
 					)
 				)
 			}
 
-			.onPointerEvent(PointerEventType.Scroll) {
-				val change = it.changes.first()
+			.onPointerEvent(PointerEventType.Scroll) { event ->
+				val change = event.changes.first()
 				val value = change.scrollDelta.y.toInt().sign
 				center = if (value < 0) center.times(2.0) else center.div(2.0)
 				zoom -= value
@@ -582,14 +683,14 @@ fun Marker(
 fun Pin(
 	coords: Coordinates,
 	dimensions: Size,
-	path: String = "composeResources/karta.composeapp.generated.resources/drawable/pin.png",
-	hovered: String = "composeResources/karta.composeapp.generated.resources/drawable/bluePin.png",
+	pinDrawable: String = "composeResources/karta.composeapp.generated.resources/drawable/pin.png",
+	hoveredDrawable: String = "composeResources/karta.composeapp.generated.resources/drawable/bluePin.png",
 ) {
-	val painter = painterResource(path)
-	val hoveredPainter = painterResource(hovered)
+	val ordinaryPainter = painterResource(pinDrawable)
+	val hoveredPainter = painterResource(hoveredDrawable)
 
-	val pinSize = remember(painter, dimensions) {
-		val (width, height) = painter.intrinsicSize
+	val pinSize = remember(ordinaryPainter, dimensions) {
+		val (width, height) = ordinaryPainter.intrinsicSize
 
 		if (width > height) {
 			val aspectRatio = height.toFloat() / width.toFloat()
@@ -638,7 +739,7 @@ fun Pin(
 				.width(pinSize.width.dp)
 				.height(pinSize.height.dp),
 
-			painter = if (isHovered) hoveredPainter else painter,
+			painter = if (isHovered) hoveredPainter else ordinaryPainter,
 			contentDescription = null
 		)
 	}
