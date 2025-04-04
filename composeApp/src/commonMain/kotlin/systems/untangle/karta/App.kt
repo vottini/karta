@@ -424,17 +424,7 @@ fun Karta(
 enum class PointerButton {
 	LEFT,
 	RIGHT,
-	WHEEL,
-	OTHER
-}
-
-fun trackButton(buttons: PointerButtons) : PointerButton {
-	return when {
-		buttons.isPrimaryPressed -> PointerButton.LEFT
-		buttons.isSecondaryPressed -> PointerButton.RIGHT
-		buttons.isTertiaryPressed -> PointerButton.WHEEL
-		else -> PointerButton.OTHER
-	}
+	WHEEL
 }
 
 enum class ButtonAction {
@@ -451,6 +441,14 @@ data class PointerPosition(
 	val coordinates: Coordinates,
 	val position: Offset
 )
+
+class PointerEventFlows(
+	mutableMoveEventsFlow: MutableSharedFlow <PointerEvent>,
+	mutableButtonEventsFlow: MutableSharedFlow <PointerEvent>
+) {
+	val moveEventsFlow: SharedFlow <PointerEvent> = mutableMoveEventsFlow
+	val buttonEventsFlow: SharedFlow <PointerEvent> = mutableButtonEventsFlow
+}
 
 class PointerFlows(
 	mutableMoveFlow: MutableSharedFlow <PointerPosition>,
@@ -475,23 +473,62 @@ enum class PointerState {
 	RELEASED
 }
 
-class PointerMonitor(val pointerFlows: PointerFlows) {
+class PointerMonitor(
+	val inputButtonFlow: SharedFlow <PointerEvent>,
+	val outputButtonFlow: MutableSharedFlow <ButtonEvent>,
+	val positionFlow: SharedFlow <PointerPosition>
+) {
 	var clicked : Boolean = false
 	var lastClick : TimeMark? = null
 	var lastRelease : TimeMark? = null
+	var lastButtons : PointerButtons? = null
 	var lastMove : TimeMark? = null
 	
 	fun listen(scope: CoroutineScope) {
 		scope.launch {
-			pointerFlows.moveFlow.collect { event -> 
+			positionFlow.collect { event -> 
 				lastMove = TimeSource.Monotonic.markNow()
-				println("FROM INSIDE PointerMonitor = ${event}")
+				//println("FROM INSIDE PointerMonitor = ${event}")
 			}
 		}
 
 		scope.launch {
-			pointerFlows.clickFlow.collect { event -> 
-				println("FROM INSIDE PointerMonitor = ${event}")
+			inputButtonFlow.collect { event -> 
+				val current = event.buttons
+
+				lastButtons?.let { previous ->
+					if (current.isPrimaryPressed != previous.isPrimaryPressed) {
+						val generatedEvent = ButtonEvent(PointerButton.LEFT,
+							if (current.isPrimaryPressed) ButtonAction.PRESS
+							else ButtonAction.RELEASE
+						)
+
+						outputButtonFlow.emit(generatedEvent)
+						println("Mudança no botao esquerdo: ${generatedEvent}")
+					}
+
+					if (current.isSecondaryPressed != previous.isSecondaryPressed) {
+						val generatedEvent = ButtonEvent(PointerButton.RIGHT,
+							if (current.isSecondaryPressed) ButtonAction.PRESS
+							else ButtonAction.RELEASE
+						)
+
+						outputButtonFlow.emit(generatedEvent)
+						println("Mudança no botao direito: ${generatedEvent}")
+					}
+
+					if (current.isTertiaryPressed != previous.isTertiaryPressed) {
+						val generatedEvent = ButtonEvent(PointerButton.WHEEL,
+							if (current.isTertiaryPressed) ButtonAction.PRESS
+							else ButtonAction.RELEASE
+						)
+
+						outputButtonFlow.emit(generatedEvent)
+						println("Mudança no botao do meio: ${generatedEvent}")
+					}
+				}
+
+				lastButtons = event.buttons
 			}
 		}
 	}
@@ -557,6 +594,7 @@ fun KMap(
 	}
 
 	val moveFlow = remember { MutableSharedFlow <PointerPosition> (extraBufferCapacity = 1) }
+	val rawButtonFlow = remember { MutableSharedFlow <PointerEvent> (extraBufferCapacity = 1) }
 	val clickFlow = remember { MutableSharedFlow <ButtonEvent> (extraBufferCapacity = 1) }
 
 	val pointerEvents = remember(moveFlow, clickFlow) {
@@ -566,7 +604,7 @@ fun KMap(
 	)}
 
 	LaunchedEffect(pointerEvents) {
-		val monitor = PointerMonitor(pointerEvents)
+		val monitor = PointerMonitor(rawButtonFlow, clickFlow, moveFlow)
 		monitor.listen(this)
 	}
 
@@ -581,22 +619,8 @@ fun KMap(
 				)
 			}
 
-			.onPointerEvent(PointerEventType.Press) { event ->
-				clickFlow.tryEmit(ButtonEvent(
-					trackButton(event.buttons),
-					ButtonAction.PRESS)
-				)
-
-				println("CLICK PRESS ${event}")
-			}
-
-			.onPointerEvent(PointerEventType.Release) { event ->
-				clickFlow.tryEmit(ButtonEvent(
-					trackButton(event.buttons),
-					ButtonAction.RELEASE)
-				)
-				println("CLICK RELEASE ${event}")
-			}
+			.onPointerEvent(PointerEventType.Press) { rawButtonFlow.tryEmit(it) }
+			.onPointerEvent(PointerEventType.Release) { rawButtonFlow.tryEmit(it) }
 
 			.onPointerEvent(PointerEventType.Move) { event ->
 				val position = event.changes.first().position
@@ -730,6 +754,15 @@ fun Pin(
 		LaunchedEffect(pointerEvents, ownExtension) {
 			pointerEvents.moveFlow.collect { event -> 
 				isHovered = event.isInside(ownExtension)
+			}
+		}
+
+		LaunchedEffect(isHovered) {
+			println("HOVERED CHANGED TO ${isHovered}")
+			if (isHovered) {
+				pointerEvents.clickFlow.collect { event ->
+					println(event)
+				}
 			}
 		}
 
