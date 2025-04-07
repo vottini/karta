@@ -498,33 +498,45 @@ class PointerMonitor(
 
 				lastButtons?.let { previous ->
 					if (current.isPrimaryPressed != previous.isPrimaryPressed) {
-						val generatedEvent = ButtonEvent(PointerButton.LEFT,
+						outputButtonFlow.emit(ButtonEvent(PointerButton.LEFT,
 							if (current.isPrimaryPressed) ButtonAction.PRESS
-							else ButtonAction.RELEASE
+							else ButtonAction.RELEASE)
 						)
-
-						outputButtonFlow.emit(generatedEvent)
-						println("Mudança no botao esquerdo: ${generatedEvent}")
 					}
 
 					if (current.isSecondaryPressed != previous.isSecondaryPressed) {
-						val generatedEvent = ButtonEvent(PointerButton.RIGHT,
+						outputButtonFlow.emit(ButtonEvent(PointerButton.RIGHT,
 							if (current.isSecondaryPressed) ButtonAction.PRESS
-							else ButtonAction.RELEASE
+							else ButtonAction.RELEASE)
 						)
-
-						outputButtonFlow.emit(generatedEvent)
-						println("Mudança no botao direito: ${generatedEvent}")
 					}
 
 					if (current.isTertiaryPressed != previous.isTertiaryPressed) {
-						val generatedEvent = ButtonEvent(PointerButton.WHEEL,
+						outputButtonFlow.emit(ButtonEvent(PointerButton.WHEEL,
 							if (current.isTertiaryPressed) ButtonAction.PRESS
-							else ButtonAction.RELEASE
+							else ButtonAction.RELEASE)
 						)
+					}
+				} ?: run {
+					if (current.isPrimaryPressed) {
+						outputButtonFlow.emit(ButtonEvent(
+							PointerButton.LEFT,
+							ButtonAction.PRESS)
+						)
+					}
 
-						outputButtonFlow.emit(generatedEvent)
-						println("Mudança no botao do meio: ${generatedEvent}")
+					if (current.isSecondaryPressed) {
+						outputButtonFlow.emit(ButtonEvent(
+							PointerButton.RIGHT,
+							ButtonAction.PRESS)
+						)
+					}
+
+					if (current.isTertiaryPressed) {
+						outputButtonFlow.emit(ButtonEvent(
+							PointerButton.WHEEL,
+							ButtonAction.PRESS)
+						)
 					}
 				}
 
