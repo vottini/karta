@@ -21,6 +21,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.conflate
 
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
@@ -42,7 +43,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.Button
-import androidx.compose.foundation.gestures.onDrag
+//import androidx.compose.foundation.gestures.onDrag
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
@@ -421,6 +422,11 @@ fun Karta(
 
 /* -------------------------------------------------------------------------- */
 
+data class PointerPosition(
+	val coordinates: Coordinates,
+	val offset: Offset
+)
+
 enum class PointerButton {
 	LEFT,
 	RIGHT,
@@ -434,21 +440,14 @@ enum class ButtonAction {
 
 data class ButtonEvent (
 	val button: PointerButton,
-	val action: ButtonAction
+	val action: ButtonAction,
+	val position: PointerPosition
 )
 
-data class PointerPosition(
-	val coordinates: Coordinates,
-	val position: Offset
+data class AugmentedPointerEvent (
+	val event: PointerEvent,
+	val position: PointerPosition
 )
-
-class PointerEventFlows(
-	mutableMoveEventsFlow: MutableSharedFlow <PointerEvent>,
-	mutableButtonEventsFlow: MutableSharedFlow <PointerEvent>
-) {
-	val moveEventsFlow: SharedFlow <PointerEvent> = mutableMoveEventsFlow
-	val buttonEventsFlow: SharedFlow <PointerEvent> = mutableButtonEventsFlow
-}
 
 class PointerFlows(
 	mutableMoveFlow: MutableSharedFlow <PointerPosition>,
@@ -474,73 +473,76 @@ enum class PointerState {
 }
 
 class PointerMonitor(
-	val inputButtonFlow: SharedFlow <PointerEvent>,
+	val inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
 	val outputButtonFlow: MutableSharedFlow <ButtonEvent>,
 	val positionFlow: SharedFlow <PointerPosition>
 ) {
 	var clicked : Boolean = false
 	var lastClick : TimeMark? = null
 	var lastRelease : TimeMark? = null
-	var lastButtons : PointerButtons? = null
+	var lastButtonState : PointerButtons? = null
 	var lastMove : TimeMark? = null
 	
 	fun listen(scope: CoroutineScope) {
 		scope.launch {
 			positionFlow.collect { event -> 
 				lastMove = TimeSource.Monotonic.markNow()
-				//println("FROM INSIDE PointerMonitor = ${event}")
 			}
 		}
 
 		scope.launch {
-			inputButtonFlow.collect { event -> 
+			inputButtonFlow.collect { augmentedEvent -> 
+				val ( event, position ) = augmentedEvent
 				val current = event.buttons
 
-				lastButtons?.let { previous ->
+				lastButtonState?.let { previous ->
 					if (current.isPrimaryPressed != previous.isPrimaryPressed) {
 						outputButtonFlow.emit(ButtonEvent(PointerButton.LEFT,
-							if (current.isPrimaryPressed) ButtonAction.PRESS
-							else ButtonAction.RELEASE)
+							if (current.isPrimaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
+							position)
 						)
 					}
 
 					if (current.isSecondaryPressed != previous.isSecondaryPressed) {
 						outputButtonFlow.emit(ButtonEvent(PointerButton.RIGHT,
-							if (current.isSecondaryPressed) ButtonAction.PRESS
-							else ButtonAction.RELEASE)
+							if (current.isSecondaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
+							position)
 						)
 					}
 
 					if (current.isTertiaryPressed != previous.isTertiaryPressed) {
 						outputButtonFlow.emit(ButtonEvent(PointerButton.WHEEL,
-							if (current.isTertiaryPressed) ButtonAction.PRESS
-							else ButtonAction.RELEASE)
+							if (current.isTertiaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
+							position)
 						)
 					}
 				} ?: run {
 					if (current.isPrimaryPressed) {
 						outputButtonFlow.emit(ButtonEvent(
 							PointerButton.LEFT,
-							ButtonAction.PRESS)
+							ButtonAction.PRESS,
+							position)
 						)
 					}
 
 					if (current.isSecondaryPressed) {
 						outputButtonFlow.emit(ButtonEvent(
 							PointerButton.RIGHT,
-							ButtonAction.PRESS)
+							ButtonAction.PRESS,
+							position)
 						)
 					}
 
 					if (current.isTertiaryPressed) {
 						outputButtonFlow.emit(ButtonEvent(
 							PointerButton.WHEEL,
-							ButtonAction.PRESS)
+							ButtonAction.PRESS,
+							position)
 						)
 					}
 				}
 
-				lastButtons = event.buttons
+				lastButtonState = event.buttons
 			}
 		}
 	}
@@ -549,7 +551,7 @@ class PointerMonitor(
 
 
 fun PointerPosition.isInside(tileRegion: TileRegion) : Boolean {
-	val (x, y) = this.position
+	val (x, y) = this.offset
 
 	return (
 		x.toInt() in tileRegion.topLeft.x..tileRegion.bottomRight.x &&
@@ -606,7 +608,7 @@ fun KMap(
 	}
 
 	val moveFlow = remember { MutableSharedFlow <PointerPosition> (extraBufferCapacity = 1) }
-	val rawButtonFlow = remember { MutableSharedFlow <PointerEvent> (extraBufferCapacity = 1) }
+	val rawButtonFlow = remember { MutableSharedFlow <AugmentedPointerEvent> (extraBufferCapacity = 1) }
 	val clickFlow = remember { MutableSharedFlow <ButtonEvent> (extraBufferCapacity = 1) }
 
 	val pointerEvents = remember(moveFlow, clickFlow) {
@@ -616,23 +618,80 @@ fun KMap(
 	)}
 
 	LaunchedEffect(pointerEvents) {
-		val monitor = PointerMonitor(rawButtonFlow, clickFlow, moveFlow)
-		monitor.listen(this)
+		PointerMonitor(rawButtonFlow, clickFlow, moveFlow)
+			.listen(this)
+	}
+
+	var dragging by remember { mutableStateOf(false) }
+	var dragStart by remember { mutableStateOf(Offset(0f, 0f)) }
+
+	LaunchedEffect(pointerEvents) {
+		pointerEvents.clickFlow.collect { event ->
+			println("CLICK POSITION ${event.position}")
+			if (event.button == PointerButton.LEFT) {
+				dragging = (event.action == ButtonAction.PRESS)
+				if (dragging) dragStart = event.position.offset
+			}
+		}
+	}
+
+	LaunchedEffect(dragging, dragStart) {
+		var lastStop = dragStart
+
+		if (dragging) {
+			pointerEvents.moveFlow.conflate().collect { event -> 
+				val dragged = Offset(
+					event.offset.x - lastStop.x,
+					event.offset.y - lastStop.y
+				)
+
+				lastStop = event.offset
+				center = DoubleOffset(
+					center.x - (dragged.x / kartaTileSize),
+					center.y - (dragged.y / kartaTileSize)
+				)
+			}
+		}
 	}
 
 	Box(
 		Modifier
 			.fillMaxWidth()
 			.fillMaxHeight()
-			.onDrag { dragged ->
-				center = DoubleOffset(
-					center.x - (dragged.x / kartaTileSize),
-					center.y - (dragged.y / kartaTileSize)
+			//.onDrag { dragged ->
+			//	center = DoubleOffset(
+			//		center.x - (dragged.x / kartaTileSize),
+			//		center.y - (dragged.y / kartaTileSize)
+			//	)
+			//}
+
+			.onPointerEvent(PointerEventType.Press) { event ->
+				val position = event.changes.first().position
+				val coordinates = convertToLatLong(zoom.toInt(), DoubleOffset(
+					center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
+					center.y + (position.y - viewSize.halfHeight) / kartaTileSize
+				))
+
+				rawButtonFlow.tryEmit(
+					AugmentedPointerEvent(event,
+						PointerPosition(coordinates, position)
+					)
 				)
 			}
 
-			.onPointerEvent(PointerEventType.Press) { rawButtonFlow.tryEmit(it) }
-			.onPointerEvent(PointerEventType.Release) { rawButtonFlow.tryEmit(it) }
+			.onPointerEvent(PointerEventType.Release) { event ->
+				val position = event.changes.first().position
+				val coordinates = convertToLatLong(zoom.toInt(), DoubleOffset(
+					center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
+					center.y + (position.y - viewSize.halfHeight) / kartaTileSize
+				))
+
+				rawButtonFlow.tryEmit(
+					AugmentedPointerEvent(event,
+						PointerPosition(coordinates, position)
+					)
+				)
+			}
 
 			.onPointerEvent(PointerEventType.Move) { event ->
 				val position = event.changes.first().position
@@ -719,14 +778,13 @@ fun Marker(
 fun Pin(
 	coords: Coordinates,
 	dimensions: Size,
-	pinDrawable: String = "composeResources/karta.composeapp.generated.resources/drawable/pin.png",
-	hoveredDrawable: String = "composeResources/karta.composeapp.generated.resources/drawable/bluePin.png",
+	sprite: String = redPin,
+	onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
+	onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {}
 ) {
-	val ordinaryPainter = painterResource(pinDrawable)
-	val hoveredPainter = painterResource(hoveredDrawable)
-
-	val pinSize = remember(ordinaryPainter, dimensions) {
-		val (width, height) = ordinaryPainter.intrinsicSize
+	val pinPainter = painterResource(sprite)
+	val pinSize = remember(pinPainter, dimensions) {
+		val (width, height) = pinPainter.intrinsicSize
 
 		if (width > height) {
 			val aspectRatio = height.toFloat() / width.toFloat()
@@ -765,15 +823,19 @@ fun Pin(
 
 		LaunchedEffect(pointerEvents, ownExtension) {
 			pointerEvents.moveFlow.collect { event -> 
-				isHovered = event.isInside(ownExtension)
+				val newHoverState = event.isInside(ownExtension)
+
+				if (newHoverState != isHovered) {
+					isHovered = newHoverState
+					onHover(newHoverState)
+				}
 			}
 		}
 
 		LaunchedEffect(isHovered) {
-			println("HOVERED CHANGED TO ${isHovered}")
 			if (isHovered) {
 				pointerEvents.clickFlow.collect { event ->
-					println(event)
+					onClick(event)
 				}
 			}
 		}
@@ -784,7 +846,7 @@ fun Pin(
 				.width(pinSize.width.dp)
 				.height(pinSize.height.dp),
 
-			painter = if (isHovered) hoveredPainter else ordinaryPainter,
+			painter = pinPainter,
 			contentDescription = null
 		)
 	}
@@ -968,6 +1030,10 @@ val tileServerOptions = listOf(
 )
 
 
+val redPin = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
+val greenPin = "composeResources/karta.composeapp.generated.resources/drawable/greenPin.png"
+val bluePin = "composeResources/karta.composeapp.generated.resources/drawable/bluePin.png"
+
 @Composable
 fun App() {
 	var tileServerIndex by remember { mutableStateOf(0) }
@@ -981,6 +1047,80 @@ fun App() {
 		val viewingRegion = LocalViewingRegion.current
 		val converter = LocalConverter.current
 		val zoom = LocalZoom.current
+
+		var hoveredElement by remember { mutableStateOf("") }
+		var selectedElement by remember { mutableStateOf("") }
+
+		for (k in 1..3) {
+			Circle(
+				coords = home,
+				radius = k * 500f,
+				radiusUnit = DistanceUnit.METERS,
+				borderWidth = 2f,
+				fillColor = null
+			)
+		}
+
+		Pin(
+			coords = home,
+			sprite = if (selectedElement == "home") greenPin else if (hoveredElement == "home") bluePin else redPin,
+			dimensions = Size(40, 40),
+			onHover = { hovered ->
+				if (hovered) hoveredElement = "home"
+				if (!hovered && hoveredElement == "home") {
+					hoveredElement = ""
+				}
+			},
+			onClick = { event -> selectedElement = "home" }
+		)
+
+		Circle(
+			coords = ilhaBoi,
+			radius = 10f,
+			borderWidth = 1f,
+			fillColor = Color.Blue
+		)
+
+		val pointerEvents = LocalPointerEvents.current
+		var cefetCoords by remember { mutableStateOf(cefet) }
+		var cefetPressed by remember { mutableStateOf(false) }
+
+		Pin(
+			coords = cefetCoords,
+			sprite = if (selectedElement == "cefet") greenPin else if (hoveredElement == "cefet") bluePin else redPin,
+			dimensions = Size(50, 50),
+			onHover = { hovered ->
+				if (hovered) hoveredElement = "cefet"
+				if (!hovered && hoveredElement == "cefet") {
+					hoveredElement = ""
+				}
+			},
+			onClick = { event ->
+				selectedElement = "cefet"
+				cefetPressed = (event.action == ButtonAction.PRESS)
+			}
+		)
+
+		LaunchedEffect(selectedElement, cefetPressed) {
+			if (cefetPressed && selectedElement == "cefet") {
+				pointerEvents.moveFlow.collect { event -> 
+					cefetCoords = event.coordinates
+				}
+			}
+		}
+
+		Polyline(
+			coordsList = rota,
+			strokeColor = Color.Blue,
+			strokeWidth = 5.0f
+		)
+
+		Polyline(
+			coordsList = aeroporto,
+			strokeColor = Color.Green,
+			fillColor = Color.Green,
+			fillAlpha = 0.6f
+		)
 
 		Column {
 			Text("${cursor.latitude}")
@@ -1000,45 +1140,10 @@ fun App() {
 			}
 		}
 
-		Pin(
-			coords = home,
-			dimensions = Size(40, 40)
-		)
+		//Row(
 
-		for (k in 1..3) {
-			Circle(
-				coords = home,
-				radius = k * 500f,
-				radiusUnit = DistanceUnit.METERS,
-				borderWidth = 2f,
-				fillColor = null
-			)
-		}
-
-		Circle(
-			coords = ilhaBoi,
-			radius = 10f,
-			borderWidth = 1f,
-			fillColor = Color.Blue
-		)
-
-		Pin(
-			coords = cefet,
-			dimensions = Size(50, 50)
-		)
-
-		Polyline(
-			coordsList = rota,
-			strokeColor = Color.Blue,
-			strokeWidth = 5.0f
-		)
-
-		Polyline(
-			coordsList = aeroporto,
-			strokeColor = Color.Green,
-			fillColor = Color.Green,
-			fillAlpha = 0.6f
-		)
+		//) {
+		//}
 	}
 }
 
