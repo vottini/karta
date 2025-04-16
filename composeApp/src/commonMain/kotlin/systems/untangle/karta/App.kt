@@ -21,7 +21,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.conflate
 
 import coil3.compose.AsyncImage
 import coil3.compose.LocalPlatformContext
@@ -41,9 +40,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.material.Button
-//import androidx.compose.foundation.gestures.onDrag
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
@@ -61,11 +58,12 @@ import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.ExperimentalComposeUiApi
+
 import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerButtons
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 import androidx.compose.ui.input.pointer.isSecondaryPressed
 import androidx.compose.ui.input.pointer.isTertiaryPressed
@@ -561,10 +559,6 @@ fun PointerPosition.isInside(tileRegion: TileRegion) : Boolean {
 
 /* -------------------------------------------------------------------------- */
 
-@OptIn(
-	ExperimentalFoundationApi::class,
-	ExperimentalComposeUiApi::class
-)
 @Composable
 fun KMap(
 	tileServer: TileServer,
@@ -627,7 +621,6 @@ fun KMap(
 
 	LaunchedEffect(pointerEvents) {
 		pointerEvents.clickFlow.collect { event ->
-			println("CLICK POSITION ${event.position}")
 			if (event.button == PointerButton.LEFT) {
 				dragging = (event.action == ButtonAction.PRESS)
 				if (dragging) dragStart = event.position.offset
@@ -639,7 +632,7 @@ fun KMap(
 		var lastStop = dragStart
 
 		if (dragging) {
-			pointerEvents.moveFlow.conflate().collect { event -> 
+			pointerEvents.moveFlow.collect { event -> 
 				val dragged = Offset(
 					event.offset.x - lastStop.x,
 					event.offset.y - lastStop.y
@@ -658,61 +651,46 @@ fun KMap(
 		Modifier
 			.fillMaxWidth()
 			.fillMaxHeight()
-			//.onDrag { dragged ->
-			//	center = DoubleOffset(
-			//		center.x - (dragged.x / kartaTileSize),
-			//		center.y - (dragged.y / kartaTileSize)
-			//	)
-			//}
+			.pointerInput(Unit) {
+				awaitPointerEventScope {
+					while (true) {
+						val event = awaitPointerEvent()
+						val change = event.changes.first()
+						val position = change.position
 
-			.onPointerEvent(PointerEventType.Press) { event ->
-				val position = event.changes.first().position
-				val coordinates = convertToLatLong(zoom.toInt(), DoubleOffset(
-					center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
-					center.y + (position.y - viewSize.halfHeight) / kartaTileSize
-				))
+						val coordinates = convertToLatLong(zoom.toInt(), DoubleOffset(
+							center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
+							center.y + (position.y - viewSize.halfHeight) / kartaTileSize
+						))
 
-				rawButtonFlow.tryEmit(
-					AugmentedPointerEvent(event,
-						PointerPosition(coordinates, position)
-					)
-				)
-			}
+						when (event.type) {
+							PointerEventType.Press,
+							PointerEventType.Release -> 
+								rawButtonFlow.tryEmit(
+									AugmentedPointerEvent(event,
+										PointerPosition(coordinates, position)
+									)
+								)
+							
+							PointerEventType.Move -> {
+								cursor = coordinates
+								moveFlow.tryEmit(
+									PointerPosition(
+										cursor,
+										position
+									)
+								)
+							}
 
-			.onPointerEvent(PointerEventType.Release) { event ->
-				val position = event.changes.first().position
-				val coordinates = convertToLatLong(zoom.toInt(), DoubleOffset(
-					center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
-					center.y + (position.y - viewSize.halfHeight) / kartaTileSize
-				))
+							PointerEventType.Scroll -> {
+								val value = change.scrollDelta.y.toInt().sign
+								center = if (value < 0) center.times(2.0) else center.div(2.0)
+								zoom -= value
+							}
+						}
 
-				rawButtonFlow.tryEmit(
-					AugmentedPointerEvent(event,
-						PointerPosition(coordinates, position)
-					)
-				)
-			}
-
-			.onPointerEvent(PointerEventType.Move) { event ->
-				val position = event.changes.first().position
-				cursor = convertToLatLong(zoom.toInt(), DoubleOffset(
-					center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
-					center.y + (position.y - viewSize.halfHeight) / kartaTileSize
-				))
-
-				moveFlow.tryEmit(
-					PointerPosition(
-						cursor,
-						position
-					)
-				)
-			}
-
-			.onPointerEvent(PointerEventType.Scroll) { event ->
-				val change = event.changes.first()
-				val value = change.scrollDelta.y.toInt().sign
-				center = if (value < 0) center.times(2.0) else center.div(2.0)
-				zoom -= value
+					}
+				}
 			}
 	) {
 		val horizontalTiles = remember(viewSize) { ((viewSize.width / kartaTileSize) / 2) + 1 }
