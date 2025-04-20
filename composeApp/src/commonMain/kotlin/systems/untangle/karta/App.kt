@@ -2,7 +2,6 @@ package systems.untangle.karta
 
 import kotlin.io.println
 import kotlin.time.TimeSource
-import kotlin.time.TimeSource.Monotonic
 import kotlin.time.TimeMark
 
 import kotlin.math.sign
@@ -17,6 +16,8 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.abs
 
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -28,10 +29,8 @@ import coil3.request.ImageRequest
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -41,25 +40,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.Button
-import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.Fill
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.toOffset
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 
-import androidx.compose.ui.input.pointer.onPointerEvent
 import androidx.compose.ui.input.pointer.PointerEvent
 import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.PointerButtons
@@ -271,11 +265,11 @@ fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
  *                          ProjY(1)
  *  A-----------.             _ 
  *  |           |             {   ProjY(2)
- *  |      C----+-----.       } . .  _ . . _
+ *  |      C----+-----.       { . .  _ . . _
  *  |      |    |     |       {      {     }   IntercY(1,2)
- *  |      |    |     |       }      }     {
+ *  |      |    |     |       {      {     }
  *  '------+----B     |       - . .  { . . -
- *         |          |              }
+ *         |          |              {
  *         '----------D              -
  *
  *
@@ -330,7 +324,7 @@ fun Tile(
 
 	val headers = NetworkHeaders.Builder()
 	tileServer.requestHeaders.forEach { header ->
-		headers.set(header.key, header.value)
+    headers[header.key] = header.value
 	}
 	
 	Box(modifier = Modifier
@@ -367,6 +361,7 @@ val LocalConverter = compositionLocalOf { Converter(
 
 val LocalPointerEvents = compositionLocalOf { PointerFlows(
 	MutableSharedFlow <PointerPosition> (),
+	MutableSharedFlow <ButtonEvent> (),
 	MutableSharedFlow <ButtonEvent> ()
 )}
 
@@ -388,7 +383,6 @@ fun Karta(
 	tileServer: TileServer,
 	initialCoords: Coordinates,
 	initialZoom: Int = 14,
-	requestHeaders: String? = null,
 	content: @Composable () -> Unit = {})
 {
 	var viewSize: Size? by remember { mutableStateOf(null) }
@@ -411,7 +405,6 @@ fun Karta(
 				initialZoom,
 				initialCoords,
 				concreteSize,
-				requestHeaders,
 				content
 			)
 		}
@@ -447,13 +440,11 @@ data class AugmentedPointerEvent (
 	val position: PointerPosition
 )
 
-class PointerFlows(
-	mutableMoveFlow: MutableSharedFlow <PointerPosition>,
-	mutableClickFlow: MutableSharedFlow <ButtonEvent>
-) {
-	val moveFlow: SharedFlow <PointerPosition> = mutableMoveFlow
-	val clickFlow: SharedFlow <ButtonEvent> = mutableClickFlow
-}
+data class PointerFlows(
+	val moveFlow: SharedFlow <PointerPosition>,
+	val clickFlow: SharedFlow <ButtonEvent>,
+	val longPressFlow: SharedFlow <ButtonEvent>
+)
 
 enum class PointerAction {
 	MOVE,
@@ -472,19 +463,48 @@ enum class PointerState {
 
 class PointerMonitor(
 	val inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
-	val outputButtonFlow: MutableSharedFlow <ButtonEvent>,
-	val positionFlow: SharedFlow <PointerPosition>
+	val rawMoveFlow: SharedFlow <PointerPosition>
 ) {
 	var clicked : Boolean = false
-	var lastClick : TimeMark? = null
 	var lastRelease : TimeMark? = null
 	var lastButtonState : PointerButtons? = null
-	var lastMove : TimeMark? = null
+
+	private val _moveFlow = MutableSharedFlow <PointerPosition> ()
+	private val _clickFlow = MutableSharedFlow <ButtonEvent> ()
+	private val _longPressFlow = MutableSharedFlow <ButtonEvent> ()
+	private val _dragFlow = MutableSharedFlow <PointerPosition> ()
+
+	private var _longPressJob : Job? = null
+
+	val moveFlow: SharedFlow <PointerPosition> get() = _moveFlow
+	val clickFlow: SharedFlow <ButtonEvent> get() = _clickFlow
+ 	val longPressFlow: SharedFlow <ButtonEvent> get() = _longPressFlow
+	val dragFlow: SharedFlow <PointerPosition> get() = _dragFlow
+
+	fun checkLongPress(scope: CoroutineScope, position: PointerPosition) {
+		_longPressJob = scope.launch {
+			delay(1_500)
+
+			_longPressFlow.emit(
+				ButtonEvent(
+					PointerButton.LEFT,
+					ButtonAction.PRESS,
+					position
+				)
+			)
+		}
+	}
+
+	fun cancelLongPress() {
+		_longPressJob?.cancel()
+		_longPressJob = null
+	}
 	
 	fun listen(scope: CoroutineScope) {
 		scope.launch {
-			positionFlow.collect { event -> 
-				lastMove = TimeSource.Monotonic.markNow()
+			rawMoveFlow.collect { position ->
+				_moveFlow.emit(position)
+				cancelLongPress()
 			}
 		}
 
@@ -495,28 +515,47 @@ class PointerMonitor(
 
 				lastButtonState?.let { previous ->
 					if (current.isPrimaryPressed != previous.isPrimaryPressed) {
-						outputButtonFlow.emit(ButtonEvent(PointerButton.LEFT,
+						if (current.isPrimaryPressed) {
+							checkLongPress(this, position)
+							clicked = true
+						}
+
+						else {
+							cancelLongPress()
+							clicked = false
+						}
+					}
+				} ?: run {
+					if (current.isPrimaryPressed) {
+						checkLongPress(this, position)
+						clicked = true
+					}
+				}
+
+				lastButtonState?.let { previous ->
+					if (current.isPrimaryPressed != previous.isPrimaryPressed) {
+						_clickFlow.emit(ButtonEvent(PointerButton.LEFT,
 							if (current.isPrimaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
 							position)
 						)
 					}
 
 					if (current.isSecondaryPressed != previous.isSecondaryPressed) {
-						outputButtonFlow.emit(ButtonEvent(PointerButton.RIGHT,
+						_clickFlow.emit(ButtonEvent(PointerButton.RIGHT,
 							if (current.isSecondaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
 							position)
 						)
 					}
 
 					if (current.isTertiaryPressed != previous.isTertiaryPressed) {
-						outputButtonFlow.emit(ButtonEvent(PointerButton.WHEEL,
+						_clickFlow.emit(ButtonEvent(PointerButton.WHEEL,
 							if (current.isTertiaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
 							position)
 						)
 					}
 				} ?: run {
 					if (current.isPrimaryPressed) {
-						outputButtonFlow.emit(ButtonEvent(
+						_clickFlow.emit(ButtonEvent(
 							PointerButton.LEFT,
 							ButtonAction.PRESS,
 							position)
@@ -524,7 +563,7 @@ class PointerMonitor(
 					}
 
 					if (current.isSecondaryPressed) {
-						outputButtonFlow.emit(ButtonEvent(
+						_clickFlow.emit(ButtonEvent(
 							PointerButton.RIGHT,
 							ButtonAction.PRESS,
 							position)
@@ -532,7 +571,7 @@ class PointerMonitor(
 					}
 
 					if (current.isTertiaryPressed) {
-						outputButtonFlow.emit(ButtonEvent(
+						_clickFlow.emit(ButtonEvent(
 							PointerButton.WHEEL,
 							ButtonAction.PRESS,
 							position)
@@ -565,7 +604,6 @@ fun KMap(
 	initialZoom: Int,
 	initialCoords: Coordinates,
 	viewSize: Size,
-	requestHeaders: String?,
 	content: @Composable () -> Unit)
 {
 	var zoom by remember { mutableStateOf(initialZoom) }
@@ -601,19 +639,25 @@ fun KMap(
 		))
 	}
 
-	val moveFlow = remember { MutableSharedFlow <PointerPosition> (extraBufferCapacity = 1) }
+	val rawMoveFlow = remember { MutableSharedFlow <PointerPosition> (extraBufferCapacity = 1) }
 	val rawButtonFlow = remember { MutableSharedFlow <AugmentedPointerEvent> (extraBufferCapacity = 1) }
-	val clickFlow = remember { MutableSharedFlow <ButtonEvent> (extraBufferCapacity = 1) }
+	val pointerMonitor = remember(rawButtonFlow, rawMoveFlow) {
+		PointerMonitor(rawButtonFlow, rawMoveFlow)
+	}
 
-	val pointerEvents = remember(moveFlow, clickFlow) {
+	val pointerEvents = remember(pointerMonitor) {
 		PointerFlows(
-			moveFlow,
-			clickFlow
-	)}
+			pointerMonitor.moveFlow,
+			pointerMonitor.clickFlow,
+			pointerMonitor.longPressFlow
+		)
+	}
 
-	LaunchedEffect(pointerEvents) {
-		PointerMonitor(rawButtonFlow, clickFlow, moveFlow)
-			.listen(this)
+	LaunchedEffect(pointerMonitor) {
+		pointerMonitor.listen(this)
+		pointerMonitor.longPressFlow.collect { augmentedEvent ->
+			println("Hello ${augmentedEvent}")
+		}
 	}
 
 	var dragging by remember { mutableStateOf(false) }
@@ -674,7 +718,7 @@ fun KMap(
 							
 							PointerEventType.Move -> {
 								cursor = coordinates
-								moveFlow.tryEmit(
+								rawMoveFlow.tryEmit(
 									PointerPosition(
 										cursor,
 										position
@@ -728,12 +772,11 @@ fun KMap(
 
 
 @Composable
-fun Marker(
+fun Geolocated(
 	coords: Coordinates,
 	offset: IntOffset? = null,
 	minZoom: Int = 13,
 	extension: Size? = null,
-	onClick: () -> Unit = {},
 	content: @Composable (coordsOffset: IntOffset) -> Unit
 ) {
 	val zoom = LocalZoom.current
@@ -777,7 +820,7 @@ fun Pin(
 		}
 	}
 
-	Marker(
+	Geolocated(
 		coords = coords,
 		extension = Size(
 			pinSize.width,
@@ -852,7 +895,7 @@ fun Circle(
 		}
 	}
 
-	Marker(
+	Geolocated(
 		coords = coords,
 		extension = Size(
 			(2f * radiusInPixels).toInt(),
@@ -898,8 +941,8 @@ fun Polyline(
 	val path = remember(offsets, closed) {
 		val newPath = Path()
 
-		if (offsets != null && offsets.size > 0) {
-			val start = offsets.get(0)
+		if (offsets.isNotEmpty()) {
+			val start = offsets[0]
 			newPath.moveTo(
 				start.x,
 				start.y
@@ -1015,7 +1058,7 @@ val bluePin = "composeResources/karta.composeapp.generated.resources/drawable/bl
 @Composable
 fun App() {
 	var tileServerIndex by remember { mutableStateOf(0) }
-	val selectedTileServer = tileServerOptions.get(tileServerIndex)
+	val selectedTileServer = tileServerOptions[tileServerIndex]
 
 	Karta(
 		tileServer = selectedTileServer.server,
