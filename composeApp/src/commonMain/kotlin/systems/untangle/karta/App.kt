@@ -362,7 +362,8 @@ val LocalConverter = compositionLocalOf { Converter(
 val LocalPointerEvents = compositionLocalOf { PointerFlows(
 	MutableSharedFlow <PointerPosition> (),
 	MutableSharedFlow <ButtonEvent> (),
-	MutableSharedFlow <ButtonEvent> ()
+	MutableSharedFlow <ButtonEvent> (),
+	MutableSharedFlow <DeltaPosition> ()
 )}
 
 /* ------------------------------------------------------------------------- */
@@ -418,6 +419,12 @@ data class PointerPosition(
 	val offset: Offset
 )
 
+data class DeltaPosition(
+	val previous: PointerPosition,
+	val current: PointerPosition,
+	val diff: Offset
+)
+
 enum class PointerButton {
 	LEFT,
 	RIGHT,
@@ -443,7 +450,8 @@ data class AugmentedPointerEvent (
 data class PointerFlows(
 	val moveFlow: SharedFlow <PointerPosition>,
 	val clickFlow: SharedFlow <ButtonEvent>,
-	val longPressFlow: SharedFlow <ButtonEvent>
+	val longPressFlow: SharedFlow <ButtonEvent>,
+	val dragFlow: SharedFlow <DeltaPosition>
 )
 
 enum class PointerAction {
@@ -465,24 +473,23 @@ class PointerMonitor(
 	val inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
 	val rawMoveFlow: SharedFlow <PointerPosition>
 ) {
-	var clicked : Boolean = false
-	var lastRelease : TimeMark? = null
-	var lastButtonState : PointerButtons? = null
+	private var clicked : Boolean = false
+	private var lastButtonState : PointerButtons? = null
+	private var lastPosition : PointerPosition? = null
+	private var longPressJob : Job? = null
 
 	private val _moveFlow = MutableSharedFlow <PointerPosition> ()
 	private val _clickFlow = MutableSharedFlow <ButtonEvent> ()
 	private val _longPressFlow = MutableSharedFlow <ButtonEvent> ()
-	private val _dragFlow = MutableSharedFlow <PointerPosition> ()
-
-	private var _longPressJob : Job? = null
+	private val _dragFlow = MutableSharedFlow <DeltaPosition> ()
 
 	val moveFlow: SharedFlow <PointerPosition> get() = _moveFlow
 	val clickFlow: SharedFlow <ButtonEvent> get() = _clickFlow
  	val longPressFlow: SharedFlow <ButtonEvent> get() = _longPressFlow
-	val dragFlow: SharedFlow <PointerPosition> get() = _dragFlow
+	val dragFlow: SharedFlow <DeltaPosition> get() = _dragFlow
 
 	fun checkLongPress(scope: CoroutineScope, position: PointerPosition) {
-		_longPressJob = scope.launch {
+		longPressJob = scope.launch {
 			delay(1_500)
 
 			_longPressFlow.emit(
@@ -496,15 +503,35 @@ class PointerMonitor(
 	}
 
 	fun cancelLongPress() {
-		_longPressJob?.cancel()
-		_longPressJob = null
+		longPressJob?.cancel()
+		longPressJob = null
 	}
 	
 	fun listen(scope: CoroutineScope) {
 		scope.launch {
 			rawMoveFlow.collect { position ->
-				_moveFlow.emit(position)
 				cancelLongPress()
+
+				if (!clicked) {
+					_moveFlow.emit(position)
+                    return@collect
+				}
+
+				lastPosition?.let { previous ->
+					val diff = Offset(
+						position.offset.x - previous.offset.x,
+						position.offset.y - previous.offset.y
+					)
+
+					val delta = DeltaPosition(
+						previous,
+						position,
+						diff
+					)
+
+					lastPosition = position
+					_dragFlow.emit(delta)
+				}
 			}
 		}
 
@@ -517,64 +544,43 @@ class PointerMonitor(
 					if (current.isPrimaryPressed != previous.isPrimaryPressed) {
 						if (current.isPrimaryPressed) {
 							checkLongPress(this, position)
+							lastPosition = position
 							clicked = true
+
+							_clickFlow.emit(
+								ButtonEvent(
+									PointerButton.LEFT,
+									ButtonAction.PRESS,
+									position
+								)
+							)
 						}
 
 						else {
 							cancelLongPress()
 							clicked = false
+
+							_clickFlow.emit(
+								ButtonEvent(
+									PointerButton.LEFT,
+									ButtonAction.RELEASE,
+									position
+								)
+							)
 						}
 					}
 				} ?: run {
 					if (current.isPrimaryPressed) {
 						checkLongPress(this, position)
+						lastPosition = position
 						clicked = true
-					}
-				}
 
-				lastButtonState?.let { previous ->
-					if (current.isPrimaryPressed != previous.isPrimaryPressed) {
-						_clickFlow.emit(ButtonEvent(PointerButton.LEFT,
-							if (current.isPrimaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
-							position)
-						)
-					}
-
-					if (current.isSecondaryPressed != previous.isSecondaryPressed) {
-						_clickFlow.emit(ButtonEvent(PointerButton.RIGHT,
-							if (current.isSecondaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
-							position)
-						)
-					}
-
-					if (current.isTertiaryPressed != previous.isTertiaryPressed) {
-						_clickFlow.emit(ButtonEvent(PointerButton.WHEEL,
-							if (current.isTertiaryPressed) ButtonAction.PRESS else ButtonAction.RELEASE,
-							position)
-						)
-					}
-				} ?: run {
-					if (current.isPrimaryPressed) {
-						_clickFlow.emit(ButtonEvent(
-							PointerButton.LEFT,
-							ButtonAction.PRESS,
-							position)
-						)
-					}
-
-					if (current.isSecondaryPressed) {
-						_clickFlow.emit(ButtonEvent(
-							PointerButton.RIGHT,
-							ButtonAction.PRESS,
-							position)
-						)
-					}
-
-					if (current.isTertiaryPressed) {
-						_clickFlow.emit(ButtonEvent(
-							PointerButton.WHEEL,
-							ButtonAction.PRESS,
-							position)
+						_clickFlow.emit(
+							ButtonEvent(
+								PointerButton.LEFT,
+								ButtonAction.PRESS,
+								position
+							)
 						)
 					}
 				}
@@ -649,40 +655,34 @@ fun KMap(
 		PointerFlows(
 			pointerMonitor.moveFlow,
 			pointerMonitor.clickFlow,
-			pointerMonitor.longPressFlow
+			pointerMonitor.longPressFlow,
+			pointerMonitor.dragFlow
 		)
 	}
 
 	LaunchedEffect(pointerMonitor) {
 		pointerMonitor.listen(this)
 		pointerMonitor.longPressFlow.collect { augmentedEvent ->
-			println("Hello ${augmentedEvent}")
+			println("LONG PRESS ${augmentedEvent}")
 		}
 	}
 
 	var dragging by remember { mutableStateOf(false) }
-	var dragStart by remember { mutableStateOf(Offset(0f, 0f)) }
 
 	LaunchedEffect(pointerEvents) {
 		pointerEvents.clickFlow.collect { event ->
+			println("ClickFLOW ${event}")
 			if (event.button == PointerButton.LEFT) {
 				dragging = (event.action == ButtonAction.PRESS)
-				if (dragging) dragStart = event.position.offset
 			}
 		}
 	}
 
-	LaunchedEffect(dragging, dragStart) {
-		var lastStop = dragStart
-
+	LaunchedEffect(dragging) {
 		if (dragging) {
-			pointerEvents.moveFlow.collect { event -> 
-				val dragged = Offset(
-					event.offset.x - lastStop.x,
-					event.offset.y - lastStop.y
-				)
+			pointerEvents.dragFlow.collect { deltaPosition -> 
+				val dragged = deltaPosition.diff
 
-				lastStop = event.offset
 				center = DoubleOffset(
 					center.x - (dragged.x / kartaTileSize),
 					center.y - (dragged.y / kartaTileSize)
@@ -1045,9 +1045,9 @@ data class TileServerOption(
 	val server: TileServer)
 
 val tileServerOptions = listOf(
-	TileServerOption("SMAPS", smapsServer),
 	TileServerOption("OpenStreetMaps", openStreetMapServer),
-	TileServerOption("Google Satellite", googleSatelliteServer)
+	TileServerOption("Google Satellite", googleSatelliteServer),
+	TileServerOption("SMAPS", smapsServer)
 )
 
 
