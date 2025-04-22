@@ -69,6 +69,18 @@ import androidx.compose.runtime.compositionLocalOf
 
 import karta.composeapp.generated.resources.Res
 import karta.composeapp.generated.resources.grid
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.onSubscription
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * 
@@ -454,21 +466,6 @@ data class PointerFlows(
 	val dragFlow: SharedFlow <DeltaPosition>
 )
 
-enum class PointerAction {
-	MOVE,
-	SINGLE_CLICK,
-	DOUBLE_CLICK,
-	LONG_CLICK,
-	DRAG
-}
-
-enum class PointerState {
-	IDLE,
-	MOVING,
-	CLICKED,
-	RELEASED
-}
-
 class PointerMonitor(
 	val inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
 	val rawMoveFlow: SharedFlow <PointerPosition>
@@ -487,6 +484,7 @@ class PointerMonitor(
 	val clickFlow: SharedFlow <ButtonEvent> get() = _clickFlow
  	val longPressFlow: SharedFlow <ButtonEvent> get() = _longPressFlow
 	val dragFlow: SharedFlow <DeltaPosition> get() = _dragFlow
+	val dragSubscribersFlow: SharedFlow <Int> get() = _dragFlow.subscriptionCount
 
 	fun checkLongPress(scope: CoroutineScope, position: PointerPosition) {
 		longPressJob = scope.launch {
@@ -514,7 +512,7 @@ class PointerMonitor(
 
 				if (!clicked) {
 					_moveFlow.emit(position)
-                    return@collect
+					return@collect
 				}
 
 				lastPosition?.let { previous ->
@@ -660,26 +658,51 @@ fun KMap(
 		)
 	}
 
+	var leftPressed by remember { mutableStateOf(false) }
+	var draggingAvailable by remember { mutableStateOf(true) }
+
 	LaunchedEffect(pointerMonitor) {
 		pointerMonitor.listen(this)
-		pointerMonitor.longPressFlow.collect { augmentedEvent ->
-			println("LONG PRESS ${augmentedEvent}")
+
+		var lastSubCount = 0
+		pointerMonitor.dragSubscribersFlow.collect { subCount ->
+
+			/*
+				When only it itself subscribed to dragging events,
+				the counter passes from 0 to 1 (rising edge), so this
+				is when it is still allowed to drag the map. When there
+				is one more drag listener (it plus another element),
+				the count will go from 2 to 1 (falling edge) when
+				it itself stops listening to drag events
+			*/
+
+			when (subCount) {
+				0 -> draggingAvailable = true
+				1 -> draggingAvailable = (lastSubCount == 0)
+				else -> draggingAvailable = false
+			}
+
+			lastSubCount = subCount
 		}
 	}
 
-	var dragging by remember { mutableStateOf(false) }
+	LaunchedEffect(pointerEvents) {
+		pointerEvents.longPressFlow.collect { augmentedEvent ->
+			println("LONG PRESS $augmentedEvent")
+			leftPressed = false
+		}
+	}
 
 	LaunchedEffect(pointerEvents) {
 		pointerEvents.clickFlow.collect { event ->
-			println("ClickFLOW ${event}")
 			if (event.button == PointerButton.LEFT) {
-				dragging = (event.action == ButtonAction.PRESS)
+				leftPressed = (event.action == ButtonAction.PRESS)
 			}
 		}
 	}
 
-	LaunchedEffect(dragging) {
-		if (dragging) {
+	LaunchedEffect(pointerEvents, leftPressed, draggingAvailable) {
+		if (leftPressed && draggingAvailable) {
 			pointerEvents.dragFlow.collect { deltaPosition -> 
 				val dragged = deltaPosition.diff
 
@@ -1124,8 +1147,8 @@ fun App() {
 
 		LaunchedEffect(selectedElement, cefetPressed) {
 			if (cefetPressed && selectedElement == "cefet") {
-				pointerEvents.moveFlow.collect { event -> 
-					cefetCoords = event.coordinates
+				pointerEvents.dragFlow.collect { deltaPosition -> 
+					cefetCoords = deltaPosition.current.coordinates
 				}
 			}
 		}
