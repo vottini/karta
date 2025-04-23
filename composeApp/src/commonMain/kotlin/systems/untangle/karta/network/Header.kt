@@ -1,0 +1,6 @@
+package systems.untangle.karta.network
+
+data class Header(
+    val key: String,
+    val value: String
+)
