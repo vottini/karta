@@ -12,6 +12,11 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import systems.untangle.karta.LocalConverter
+import systems.untangle.karta.LocalCursor
+import systems.untangle.karta.LocalPointerEvents
+import systems.untangle.karta.LocalViewingRegion
+import systems.untangle.karta.LocalZoom
 
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.Size

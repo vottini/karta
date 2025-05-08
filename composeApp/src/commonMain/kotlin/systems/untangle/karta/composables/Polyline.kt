@@ -13,6 +13,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
+import systems.untangle.karta.LocalConverter
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.TileRegion
 import systems.untangle.karta.data.intersects

@@ -14,12 +14,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
+import androidx.compose.runtime.MutableState
 import kotlinx.coroutines.CoroutineScope
+
+import systems.untangle.karta.LocalPointerEvents
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.Size
 import systems.untangle.karta.data.defineTileRegion
 import systems.untangle.karta.input.ButtonEvent
 import systems.untangle.karta.input.isInside
+import systems.untangle.karta.selection.SelectionState
 
 const val redPin = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
 const val greenPin = "composeResources/karta.composeapp.generated.resources/drawable/greenPin.png"
@@ -105,3 +109,12 @@ fun Pin(
     }
 }
 
+@Composable
+fun Pin(
+    coords: Coordinates,
+    dimensions: Size,
+    sprite: String = redPin,
+    selectionGroup: MutableState <SelectionState>
+) {
+
+}

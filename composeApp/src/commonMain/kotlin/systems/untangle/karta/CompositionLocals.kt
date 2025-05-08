@@ -1,4 +1,4 @@
-package systems.untangle.karta.composables
+package systems.untangle.karta
 
 import androidx.compose.runtime.compositionLocalOf
 import kotlinx.coroutines.flow.MutableSharedFlow
