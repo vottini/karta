@@ -1,14 +1,23 @@
+package systems.untangle.karta.selection
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Stable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
-import systems.untangle.karta.selection.SelectionState
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.getValue
 
-@Stable
 data class ItemState(
     val hovered: Boolean,
-    val selected: Boolean
-)
+    val selected: Boolean,
+    val itemId: String
+) {
+    fun createContext(state: SelectionState, setter: (SelectionState) -> Unit) =
+        SelectionContext(
+            state,
+            setter,
+            itemId
+        )
+}
 
 @Composable
 fun SelectionItem(
@@ -16,10 +25,18 @@ fun SelectionItem(
     itemId: String,
     content: @Composable (ownState: ItemState) -> Unit
 ) {
-    val itemState = remember(selectionState, itemId) { ItemState(
-		selectionState.currentHover == itemId,
-		selectionState.currentSelection == itemId
-	)}
+    println("SELECTION_ITEM STATE IS $selectionState")
+    val currentState by rememberUpdatedState(selectionState)
+
+    LaunchedEffect(selectionState) {
+        println("WOOOOW IT CHANGED")
+    }
+
+    val itemState = ItemState(
+		currentState.currentHover == itemId,
+		currentState.currentSelection == itemId,
+        itemId
+	)
 
 	content(itemState)
 }

@@ -1,6 +1,6 @@
 package systems.untangle.karta
 
-import SelectionItem
+import systems.untangle.karta.selection.SelectionItem
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.Button
 import androidx.compose.material.Text
@@ -22,7 +22,6 @@ import systems.untangle.karta.data.DistanceUnit
 import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.network.Header
 import systems.untangle.karta.network.TileServer
-import systems.untangle.karta.selection.SelectionState
 import systems.untangle.karta.selection.rememberSelection
 
 
@@ -88,13 +87,19 @@ fun App() {
 
 		val pointerEvents = LocalPointerEvents.current
 		var cefetCoords by remember { mutableStateOf(cefet) }
-		var cefetPressed by remember { mutableStateOf(false) }
-
 		var homeCoords by remember { mutableStateOf(home) }
-		var homePressed by remember { mutableStateOf(false) }
 
+		var cefetPressed by remember { mutableStateOf(false) }
+		var homePressed by remember { mutableStateOf(false) }
 		var hoveredElement by remember { mutableStateOf("") }
 		var selectedElement by remember { mutableStateOf("") }
+
+		Circle(
+			coords = ilhaBoi,
+			radius = 10f,
+			borderWidth = 1f,
+			fillColor = Color.Blue
+		)
 
 		for (k in 1..3) {
 			Circle(
@@ -106,120 +111,76 @@ fun App() {
 			)
 		}
 
-		var mapSelection by rememberSelection()
+		val (mapSelection, mapSelectionSetter) = rememberSelection()
 
-		SelectionItem(
-			selectionState = mapSelection,
-			itemId = "cefet"
-		) { ownState ->
-			println("CEFET State is $ownState")
+		LaunchedEffect(mapSelection) {
+			println("!!! APP State HAS CHANGED TO $mapSelection")
 		}
 
 		SelectionItem(
 			selectionState = mapSelection,
 			itemId = "home"
 		) { ownState ->
-			println("HOME State is $ownState")
+			val (hovered, selected) = ownState
+			LaunchedEffect(ownState) {
+				println("### [HOME] SELECTION ITEM ownState HAS CHANGED TO $mapSelection")
+			}
+
+			val selectionContext = remember(ownState, mapSelection, mapSelectionSetter) {
+				println("[HOME] RECRIANDO SELECTION CONTEXT COM $mapSelection")
+				ownState.createContext(mapSelection, mapSelectionSetter)
+			}
+
+			Pin(
+				coords = homeCoords,
+				selectionContext = selectionContext,
+				sprite = if (selected) greenPin else if (hovered) bluePin else redPin,
+				dimensions = Size(40, 40)
+			)
 		}
 
-		/*
-
-		var mapSelection: SelectionState = rememberSelection()
-		val elements = remember { mutableStateListOf <GeoObj> () }
-
-		for (i in elements.indices) {
-			val obj = elements[i]
-
-			SelectionItem(
-				selectionState = mapSelection,
-				itemId = obj.id
-			) { ownState ->
-				val (hovered, selected) = ownState
-
-				Pin(
-					coords = obj.coords,
-					sprite = if (selected) greenPin else if (hovered) bluePin else redPin,
-					dimensions = Size(40, 40),
-					selectionGroup = mapSelection,
-					onClick = { event ->
-						if (event.action == ButtonAction.PRESS) {
-							pointerEvents.dragFlow.collect { deltaPosition ->
-								elements[i] = obj.copy(coords = deltaPosition.current.coordinates)
-							}
-						}
-					}
-				)
+		SelectionItem(
+			selectionState = mapSelection,
+			itemId = "cefet"
+		) { ownState ->
+			val (hovered, selected) = ownState
+			LaunchedEffect(ownState) {
+				println("### [CEFET] SELECTION ITEM ownState HAS CHANGED TO $mapSelection")
 			}
+
+			val selectionContext = remember(ownState, mapSelection, mapSelectionSetter) {
+				println("[CEFET] RECRIANDO SELECTION CONTEXT COM $mapSelection")
+				ownState.createContext(mapSelection, mapSelectionSetter)
+			}
+
+			println("[CEFET] selectionContext: $selectionContext")
+
+			Pin(
+				coords = cefetCoords,
+				selectionContext = selectionContext,
+				sprite = if (selected) greenPin else if (hovered) bluePin else redPin,
+				dimensions = Size(50, 50)
+				//onClick = { event ->
+				//	cefetPressed = (event.action == ButtonAction.PRESS)
+				//}
+			)
 		}
 
-		*/
+		//LaunchedEffect(selectedElement, cefetPressed) {
+		//	if (cefetPressed && selectedElement == "cefet") {
+		//		pointerEvents.dragFlow.collect { deltaPosition ->
+		//			cefetCoords = deltaPosition.current.coordinates
+		//		}
+		//	}
+		//}
 
-		Pin(
-			coords = homeCoords,
-			sprite = if (selectedElement == "home") greenPin else if (hoveredElement == "home") bluePin else redPin,
-			dimensions = Size(40, 40),
-			onHover = { hovered ->
-				if (hovered) {
-					mapSelection = mapSelection.copy(currentHover = "home")
-					hoveredElement = "home"
-				}
-
-				if (!hovered && hoveredElement == "home") {
-					mapSelection = mapSelection.copy(currentHover = "")
-					hoveredElement = ""
-				}
-			},
-			onClick = { event ->
-				selectedElement = "home"
-				mapSelection = mapSelection.copy(currentSelection = "home")
-				homePressed = (event.action == ButtonAction.PRESS)
-			}
-		)
-
-		Circle(
-			coords = ilhaBoi,
-			radius = 10f,
-			borderWidth = 1f,
-			fillColor = Color.Blue
-		)
-
-		Pin(
-			coords = cefetCoords,
-			sprite = if (selectedElement == "cefet") greenPin else if (hoveredElement == "cefet") bluePin else redPin,
-			dimensions = Size(50, 50),
-			onHover = { hovered ->
-				if (hovered) {
-					hoveredElement = "cefet"
-					mapSelection = mapSelection.copy(currentHover = "cefet")
-				}
-
-				if (!hovered && hoveredElement == "cefet") {
-					mapSelection = mapSelection.copy(currentHover = "")
-					hoveredElement = ""
-				}
-			},
-			onClick = { event ->
-				selectedElement = "cefet"
-				cefetPressed = (event.action == ButtonAction.PRESS)
-				mapSelection = mapSelection.copy(currentSelection = "cefet")
-			}
-		)
-
-		LaunchedEffect(selectedElement, cefetPressed) {
-			if (cefetPressed && selectedElement == "cefet") {
-				pointerEvents.dragFlow.collect { deltaPosition ->
-					cefetCoords = deltaPosition.current.coordinates
-				}
-			}
-		}
-
-		LaunchedEffect(selectedElement, homePressed) {
-			if (homePressed && selectedElement == "home") {
-				pointerEvents.dragFlow.collect { deltaPosition ->
-					homeCoords = deltaPosition.current.coordinates
-				}
-			}
-		}
+		//LaunchedEffect(selectedElement, homePressed) {
+		//	if (homePressed && selectedElement == "home") {
+		//		pointerEvents.dragFlow.collect { deltaPosition ->
+		//			homeCoords = deltaPosition.current.coordinates
+		//		}
+		//	}
+		//}
 
 		Polyline(
 			coordsList = rota,
