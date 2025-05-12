@@ -7,7 +7,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 
-import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.flow.MutableStateFlow
 import systems.untangle.karta.composables.Circle
 import systems.untangle.karta.composables.Karta
 import systems.untangle.karta.composables.Pin
@@ -22,10 +22,7 @@ import systems.untangle.karta.data.DistanceUnit
 import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.network.Header
 import systems.untangle.karta.network.TileServer
-import systems.untangle.karta.selection.rememberSelection
-
-
-/* -------------------------------------------------------------------------- */
+import systems.untangle.karta.selection.SelectionState
 
 val home = Coordinates(-20.296099, -40.348038)
 val cefet = Coordinates(-20.310563, -40.318772)
@@ -89,11 +86,6 @@ fun App() {
 		var cefetCoords by remember { mutableStateOf(cefet) }
 		var homeCoords by remember { mutableStateOf(home) }
 
-		var cefetPressed by remember { mutableStateOf(false) }
-		var homePressed by remember { mutableStateOf(false) }
-		var hoveredElement by remember { mutableStateOf("") }
-		var selectedElement by remember { mutableStateOf("") }
-
 		Circle(
 			coords = ilhaBoi,
 			radius = 10f,
@@ -111,76 +103,40 @@ fun App() {
 			)
 		}
 
-		val (mapSelection, mapSelectionSetter) = rememberSelection()
-
-		LaunchedEffect(mapSelection) {
-			println("!!! APP State HAS CHANGED TO $mapSelection")
+		val selectionFlux = remember {
+			MutableStateFlow(SelectionState())
 		}
 
 		SelectionItem(
-			selectionState = mapSelection,
+			selectionFlow = selectionFlux,
 			itemId = "home"
-		) { ownState ->
-			val (hovered, selected) = ownState
-			LaunchedEffect(ownState) {
-				println("### [HOME] SELECTION ITEM ownState HAS CHANGED TO $mapSelection")
-			}
-
-			val selectionContext = remember(ownState, mapSelection, mapSelectionSetter) {
-				println("[HOME] RECRIANDO SELECTION CONTEXT COM $mapSelection")
-				ownState.createContext(mapSelection, mapSelectionSetter)
-			}
-
+		) { itemState ->
 			Pin(
 				coords = homeCoords,
-				selectionContext = selectionContext,
-				sprite = if (selected) greenPin else if (hovered) bluePin else redPin,
-				dimensions = Size(40, 40)
+				selectionContext = itemState,
+				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
+				dimensions = Size(40, 40),
+				onClick = { event ->
+					if (event.action == ButtonAction.PRESS) {
+						pointerEvents.dragFlow.collect { deltaPosition ->
+							homeCoords = deltaPosition.current.coordinates
+						}
+					}
+				}
 			)
 		}
 
 		SelectionItem(
-			selectionState = mapSelection,
+			selectionFlow = selectionFlux,
 			itemId = "cefet"
-		) { ownState ->
-			val (hovered, selected) = ownState
-			LaunchedEffect(ownState) {
-				println("### [CEFET] SELECTION ITEM ownState HAS CHANGED TO $mapSelection")
-			}
-
-			val selectionContext = remember(ownState, mapSelection, mapSelectionSetter) {
-				println("[CEFET] RECRIANDO SELECTION CONTEXT COM $mapSelection")
-				ownState.createContext(mapSelection, mapSelectionSetter)
-			}
-
-			println("[CEFET] selectionContext: $selectionContext")
-
+		) { itemState ->
 			Pin(
 				coords = cefetCoords,
-				selectionContext = selectionContext,
-				sprite = if (selected) greenPin else if (hovered) bluePin else redPin,
+				selectionContext = itemState,
+				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
 				dimensions = Size(50, 50)
-				//onClick = { event ->
-				//	cefetPressed = (event.action == ButtonAction.PRESS)
-				//}
 			)
 		}
-
-		//LaunchedEffect(selectedElement, cefetPressed) {
-		//	if (cefetPressed && selectedElement == "cefet") {
-		//		pointerEvents.dragFlow.collect { deltaPosition ->
-		//			cefetCoords = deltaPosition.current.coordinates
-		//		}
-		//	}
-		//}
-
-		//LaunchedEffect(selectedElement, homePressed) {
-		//	if (homePressed && selectedElement == "home") {
-		//		pointerEvents.dragFlow.collect { deltaPosition ->
-		//			homeCoords = deltaPosition.current.coordinates
-		//		}
-		//	}
-		//}
 
 		Polyline(
 			coordsList = rota,
@@ -201,7 +157,7 @@ fun App() {
 			Text("${viewingRegion.topLeft}")
 			Text("${viewingRegion.bottomRight}")
 			Text("${converter.convertToOffset(cursor)}")
-			Text("Zoom = ${zoom}")
+			Text("Zoom = $zoom")
 
 			Button(
 				onClick = {

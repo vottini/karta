@@ -23,8 +23,7 @@ import systems.untangle.karta.data.defineTileRegion
 import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.input.ButtonEvent
 import systems.untangle.karta.input.isInside
-import systems.untangle.karta.selection.SelectionContext
-import systems.untangle.karta.selection.emptySelection
+import systems.untangle.karta.selection.ItemState
 
 const val redPin = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
 const val greenPin = "composeResources/karta.composeapp.generated.resources/drawable/greenPin.png"
@@ -79,19 +78,18 @@ fun Pin(
                 halfSize)
         }
 
-        LaunchedEffect(pointerEvents, ownExtension) {
+        LaunchedEffect(pointerEvents, ownExtension, onHover) {
             pointerEvents.moveFlow.collect { event ->
                 val newHoverState = event.isInside(ownExtension)
 
                 if (newHoverState != isHovered) {
                     isHovered = newHoverState
-                    println("CALLING ON HOVER $newHoverState")
                     onHover(newHoverState)
                 }
             }
         }
 
-        LaunchedEffect(isHovered) {
+        LaunchedEffect(pointerEvents,isHovered, onClick) {
             if (isHovered) {
                 pointerEvents.clickFlow.collect { event ->
                     onClick(event)
@@ -114,28 +112,20 @@ fun Pin(
 @Composable
 fun Pin(
     coords: Coordinates,
-    selectionContext: SelectionContext,
+    selectionContext: ItemState,
     dimensions: Size,
     sprite: String = redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {}
 ) {
-    println("PIN STATE IS ${selectionContext.state}")
-
     val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit = { hovered ->
-        if (hovered && selectionContext.state.currentHover == emptySelection) {
-           selectionContext.setSelfHovered()
-        }
-
-        if (!hovered && selectionContext.state.currentHover == selectionContext.itemId) {
-            selectionContext.clearSelfHovered()
-        }
-
-       onHover(hovered)
+        if (hovered && selectionContext.noneHovered) selectionContext.setHovered()
+        if (selectionContext.hovered && !hovered) selectionContext.clearHovered()
+        onHover(hovered)
     }
 
     val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit = { event ->
-        if (event.action == ButtonAction.PRESS) selectionContext.setSelfSelected()
+        if (event.action == ButtonAction.PRESS) selectionContext.setSelected()
         onClick(event)
     }
 
