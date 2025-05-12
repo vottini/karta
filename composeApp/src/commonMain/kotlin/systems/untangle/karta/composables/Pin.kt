@@ -112,22 +112,28 @@ fun Pin(
 @Composable
 fun Pin(
     coords: Coordinates,
-    selectionContext: ItemState,
+    itemSelectionState: ItemState,
     dimensions: Size,
     sprite: String = redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {}
 ) {
-    val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit = { hovered ->
-        if (hovered && selectionContext.noneHovered) selectionContext.setHovered()
-        if (selectionContext.hovered && !hovered) selectionContext.clearHovered()
-        onHover(hovered)
-    }
+    val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit =
+        remember(itemSelectionState, onHover) {
+            { hovered ->
+                if (hovered && itemSelectionState.noneHovered) itemSelectionState.setHovered()
+                if (itemSelectionState.hovered && !hovered) itemSelectionState.clearHovered()
+                onHover(hovered)
+            }
+        }
 
-    val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit = { event ->
-        if (event.action == ButtonAction.PRESS) selectionContext.setSelected()
-        onClick(event)
-    }
+    val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
+        remember (itemSelectionState, onClick) {
+            { event ->
+                if (event.action == ButtonAction.PRESS) itemSelectionState.setSelected()
+                onClick(event)
+            }
+        }
 
     Pin(
         coords,

@@ -6,13 +6,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.MutableStateFlow
 
 const val emptySelection = ""
 
-class ItemState(
+data class ItemState(
     private val currentState: SelectionState,
-    private val setter: suspend (SelectionState) -> Unit,
+    private val emitter: suspend (SelectionState) -> Unit,
     val itemId: String
 ) {
     val hovered = currentState.currentHover == itemId
@@ -23,16 +22,16 @@ class ItemState(
 
     suspend fun setHovered() {
         val selfHovered = currentState.copy(currentHover = itemId)
-        setter(selfHovered)
+        emitter(selfHovered)
     }
 
     suspend fun clearHovered() {
         val noHover = currentState.copy(currentHover = emptySelection)
-        setter(noHover)
+        emitter(noHover)
     }
 
-    suspend fun setSelected() = setter(currentState.copy(currentSelection = itemId))
-    suspend fun clearSelected() = setter(currentState.copy(currentSelection = emptySelection))
+    suspend fun setSelected() = emitter(currentState.copy(currentSelection = itemId))
+    suspend fun clearSelected() = emitter(currentState.copy(currentSelection = emptySelection))
 
     override fun toString() : String {
         return "hovered=$hovered selected=$selected itemId=$itemId"
@@ -41,23 +40,23 @@ class ItemState(
 
 @Composable
 fun SelectionItem(
-    selectionFlow: MutableStateFlow<SelectionState>,
+    selectionContext: SelectionFlowContext,
     itemId: String,
     content: @Composable (ownState: ItemState) -> Unit
 ) {
-    val setter : suspend (SelectionState) -> Unit = { newState ->
-        selectionFlow.emit(newState)
+    var itemState by remember(selectionContext, itemId) {
+        mutableStateOf(ItemState(
+            SelectionState(),
+            selectionContext.selectionEmitter,
+            itemId))
     }
 
-    var itemState by remember(selectionFlow, itemId) {
-        mutableStateOf(ItemState(SelectionState(), setter, itemId))
-    }
-
-    LaunchedEffect(selectionFlow) {
-        selectionFlow.collect { currentState ->
+    LaunchedEffect(selectionContext) {
+        val (flow, emitter) = selectionContext
+        flow.collect { currentState ->
             itemState = ItemState(
                 currentState,
-                setter,
+                emitter,
                 itemId
             )
         }

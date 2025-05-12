@@ -7,7 +7,6 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
 
-import kotlinx.coroutines.flow.MutableStateFlow
 import systems.untangle.karta.composables.Circle
 import systems.untangle.karta.composables.Karta
 import systems.untangle.karta.composables.Pin
@@ -22,7 +21,7 @@ import systems.untangle.karta.data.DistanceUnit
 import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.network.Header
 import systems.untangle.karta.network.TileServer
-import systems.untangle.karta.selection.SelectionState
+import systems.untangle.karta.selection.rememberSelectionContext
 
 val home = Coordinates(-20.296099, -40.348038)
 val cefet = Coordinates(-20.310563, -40.318772)
@@ -103,17 +102,15 @@ fun App() {
 			)
 		}
 
-		val selectionFlux = remember {
-			MutableStateFlow(SelectionState())
-		}
+		val selectionContext = rememberSelectionContext()
 
 		SelectionItem(
-			selectionFlow = selectionFlux,
+			selectionContext = selectionContext,
 			itemId = "home"
 		) { itemState ->
 			Pin(
 				coords = homeCoords,
-				selectionContext = itemState,
+				itemSelectionState = itemState,
 				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
 				dimensions = Size(40, 40),
 				onClick = { event ->
@@ -127,12 +124,12 @@ fun App() {
 		}
 
 		SelectionItem(
-			selectionFlow = selectionFlux,
+			selectionContext = selectionContext,
 			itemId = "cefet"
 		) { itemState ->
 			Pin(
 				coords = cefetCoords,
-				selectionContext = itemState,
+				itemSelectionState = itemState,
 				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
 				dimensions = Size(50, 50)
 			)
