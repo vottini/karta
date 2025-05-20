@@ -8,4 +8,9 @@ data class Coordinates(
         other.latitude - latitude,
         other.longitude - longitude
     )
+
+    fun plus(other: Coordinates) = Coordinates(
+        other.latitude + latitude,
+        other.longitude + longitude
+    )
 }

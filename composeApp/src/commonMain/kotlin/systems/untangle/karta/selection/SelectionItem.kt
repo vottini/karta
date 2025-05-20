@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 
 const val emptySelection = ""
 
-data class ItemState(
+data class ItemSelectionState(
     private val currentState: SelectionState,
     private val emitter: suspend (SelectionState) -> Unit,
     val itemId: String
@@ -38,23 +38,24 @@ data class ItemState(
     }
 }
 
+
 @Composable
 fun SelectionItem(
     selectionContext: SelectionFlowContext,
     itemId: String,
-    content: @Composable (ownState: ItemState) -> Unit
+    content: @Composable (ownState: ItemSelectionState) -> Unit
 ) {
     var itemState by remember(selectionContext, itemId) {
-        mutableStateOf(ItemState(
+        mutableStateOf(ItemSelectionState(
             SelectionState(),
             selectionContext.selectionEmitter,
             itemId))
     }
 
-    LaunchedEffect(selectionContext) {
+    LaunchedEffect(selectionContext, itemId) {
         val (flow, emitter) = selectionContext
         flow.collect { currentState ->
-            itemState = ItemState(
+            itemState = ItemSelectionState(
                 currentState,
                 emitter,
                 itemId

@@ -11,6 +11,8 @@ import systems.untangle.karta.composables.Circle
 import systems.untangle.karta.composables.Karta
 import systems.untangle.karta.composables.Pin
 import systems.untangle.karta.composables.Polyline
+import systems.untangle.karta.popup.Popup
+import systems.untangle.karta.popup.PopupItem
 import systems.untangle.karta.composables.bluePin
 import systems.untangle.karta.composables.greenPin
 import systems.untangle.karta.composables.redPin
@@ -22,6 +24,12 @@ import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.network.Header
 import systems.untangle.karta.network.TileServer
 import systems.untangle.karta.selection.rememberSelectionContext
+
+val options = listOf(
+	PopupItem("Create new Pin") { println("LALA") },
+	PopupItem("Create new Circle") { println("LELE") },
+	PopupItem("Start new Polyline") { println("LILI") }
+)
 
 val home = Coordinates(-20.296099, -40.348038)
 val cefet = Coordinates(-20.310563, -40.318772)
@@ -69,11 +77,14 @@ val tileServerOptions = listOf(
 
 @Composable
 fun App() {
+	var clickedPosition: Coordinates? by remember { mutableStateOf(null) }
 	var tileServerIndex by remember { mutableStateOf(0) }
 	val selectedTileServer = tileServerOptions[tileServerIndex]
 
 	Karta(
 		tileServer = selectedTileServer.server,
+		onLongPress = { pointerPosition -> clickedPosition = pointerPosition.coordinates },
+		onMapDragged = { clickedPosition = null },
 		initialCoords = home,
 	) {
 		val cursor = LocalCursor.current
@@ -86,21 +97,11 @@ fun App() {
 		var homeCoords by remember { mutableStateOf(home) }
 
 		Circle(
-			coords = ilhaBoi,
-			radius = 10f,
-			borderWidth = 1f,
-			fillColor = Color.Blue
+		 	coords = ilhaBoi,
+		 	radius = 10f,
+		 	borderWidth = 1f,
+		 	fillColor = Color.Blue
 		)
-
-		for (k in 1..3) {
-			Circle(
-				coords = homeCoords,
-				radius = k * 500f,
-				radiusUnit = DistanceUnit.METERS,
-				borderWidth = 2f,
-				fillColor = null
-			)
-		}
 
 		val selectionContext = rememberSelectionContext()
 
@@ -115,12 +116,23 @@ fun App() {
 				dimensions = Size(40, 40),
 				onClick = { event ->
 					if (event.action == ButtonAction.PRESS) {
+						val offset = event.position.coordinates.minus(homeCoords)
 						pointerEvents.dragFlow.collect { deltaPosition ->
-							homeCoords = deltaPosition.current.coordinates
+							homeCoords = deltaPosition.current.coordinates.plus(offset)
 						}
 					}
 				}
 			)
+
+			for (k in 1..3) {
+				Circle(
+					coords = homeCoords,
+					radius = k * 500f,
+					radiusUnit = DistanceUnit.METERS,
+					borderWidth = 2f,
+					fillColor = null
+				)
+			}
 		}
 
 		SelectionItem(
@@ -147,6 +159,10 @@ fun App() {
 			fillColor = Color.Green,
 			fillAlpha = 0.6f
 		)
+
+		clickedPosition?.let { position ->
+			Popup(coords = position, options)
+		}
 
 		Column {
 			Text("${cursor.latitude}")

@@ -9,6 +9,7 @@ import androidx.compose.ui.layout.onSizeChanged
 
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.Size
+import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.network.TileServer
 
 @Composable
@@ -16,9 +17,11 @@ fun Karta(
     tileServer: TileServer,
     initialCoords: Coordinates,
     initialZoom: Int = 14,
+    onLongPress: (PointerPosition) -> Unit = {},
+    onMapDragged: () -> Unit = {},
     content: @Composable () -> Unit = {})
 {
-    var viewSize: Size? by remember { mutableStateOf(null) }
+    var nullableViewSize: Size? by remember { mutableStateOf(null) }
 
     Box(
         Modifier
@@ -27,17 +30,19 @@ fun Karta(
 
             .onSizeChanged { size ->
                 val newViewSize = Size(size.width, size.height)
-                if (newViewSize != viewSize) {
-                    viewSize = newViewSize
+                if (newViewSize != nullableViewSize) {
+                    nullableViewSize = newViewSize
                 }
             }
     ) {
-        viewSize?.let { concreteSize ->
+        nullableViewSize?.let { viewSize ->
             KMap(
                 tileServer,
                 initialZoom,
                 initialCoords,
-                concreteSize,
+                viewSize,
+                onLongPress,
+                onMapDragged,
                 content
             )
         }

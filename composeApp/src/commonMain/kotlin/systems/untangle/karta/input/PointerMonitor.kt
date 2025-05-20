@@ -33,7 +33,7 @@ class PointerMonitor(
 
     fun checkLongPress(scope: CoroutineScope, position: PointerPosition) {
         longPressJob = scope.launch {
-            delay(1_500)
+            delay(500)
 
             _longPressFlow.emit(
                 ButtonEvent(

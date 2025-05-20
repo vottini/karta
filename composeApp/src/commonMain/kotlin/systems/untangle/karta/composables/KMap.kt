@@ -91,6 +91,8 @@ fun KMap(
     initialZoom: Int,
     initialCoords: Coordinates,
     viewSize: Size,
+    onLongPress: (PointerPosition) -> Unit,
+    onMapDragged: () -> Unit,
     content: @Composable () -> Unit)
 {
     var zoom by remember { mutableStateOf(initialZoom) }
@@ -162,7 +164,7 @@ fun KMap(
             draggingAvailable =
                 when (subCount) {
                     0 -> true
-                    1 ->  (lastSubCount == 0)
+                    1 -> (lastSubCount == 0)
                     else -> false
                 }
 
@@ -172,7 +174,7 @@ fun KMap(
 
     LaunchedEffect(pointerEvents) {
         pointerEvents.longPressFlow.collect { augmentedEvent ->
-            println("LONG PRESS $augmentedEvent")
+            onLongPress.invoke(augmentedEvent.position)
             leftPressed = false
         }
     }
@@ -189,6 +191,7 @@ fun KMap(
         if (leftPressed && draggingAvailable) {
             pointerEvents.dragFlow.collect { deltaPosition ->
                 val dragged = deltaPosition.diff
+                onMapDragged.invoke()
 
                 center = DoubleOffset(
                     center.x - (dragged.x / kartaTileSize),

@@ -23,7 +23,7 @@ import systems.untangle.karta.data.defineTileRegion
 import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.input.ButtonEvent
 import systems.untangle.karta.input.isInside
-import systems.untangle.karta.selection.ItemState
+import systems.untangle.karta.selection.ItemSelectionState
 
 const val redPin = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
 const val greenPin = "composeResources/karta.composeapp.generated.resources/drawable/greenPin.png"
@@ -112,7 +112,7 @@ fun Pin(
 @Composable
 fun Pin(
     coords: Coordinates,
-    itemSelectionState: ItemState,
+    itemSelectionState: ItemSelectionState,
     dimensions: Size,
     sprite: String = redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
@@ -130,7 +130,10 @@ fun Pin(
     val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
         remember (itemSelectionState, onClick) {
             { event ->
-                if (event.action == ButtonAction.PRESS) itemSelectionState.setSelected()
+                if (event.action == ButtonAction.PRESS && !itemSelectionState.selected) {
+                    itemSelectionState.setSelected()
+                }
+
                 onClick(event)
             }
         }
