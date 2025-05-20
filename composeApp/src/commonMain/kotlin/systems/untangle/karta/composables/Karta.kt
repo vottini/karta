@@ -17,8 +17,10 @@ fun Karta(
     tileServer: TileServer,
     initialCoords: Coordinates,
     initialZoom: Int = 14,
-    onLongPress: (PointerPosition) -> Unit = {},
-    onMapDragged: () -> Unit = {},
+    iteractive: Boolean = true,
+    onPress: suspend (PointerPosition) -> Unit = {},
+    onLongPress: suspend (PointerPosition) -> Unit = {},
+    onMapDragged: suspend () -> Unit = {},
     content: @Composable () -> Unit = {})
 {
     var nullableViewSize: Size? by remember { mutableStateOf(null) }
@@ -41,6 +43,8 @@ fun Karta(
                 initialZoom,
                 initialCoords,
                 viewSize,
+                iteractive,
+                onPress,
                 onLongPress,
                 onMapDragged,
                 content

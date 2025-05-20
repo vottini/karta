@@ -91,8 +91,10 @@ fun KMap(
     initialZoom: Int,
     initialCoords: Coordinates,
     viewSize: Size,
-    onLongPress: (PointerPosition) -> Unit,
-    onMapDragged: () -> Unit,
+    iteractive: Boolean,
+    onPress: suspend (PointerPosition) -> Unit,
+    onLongPress: suspend (PointerPosition) -> Unit,
+    onMapDragged: suspend () -> Unit,
     content: @Composable () -> Unit)
 {
     var zoom by remember { mutableStateOf(initialZoom) }
@@ -146,7 +148,8 @@ fun KMap(
     var leftPressed by remember { mutableStateOf(false) }
     var draggingAvailable by remember { mutableStateOf(true) }
 
-    LaunchedEffect(pointerMonitor) {
+    LaunchedEffect(pointerMonitor, iteractive) {
+        if (!iteractive) return@LaunchedEffect
         pointerMonitor.listen(this)
 
         var lastSubCount = 0
@@ -183,6 +186,7 @@ fun KMap(
         pointerEvents.clickFlow.collect { event ->
             if (event.button == PointerButton.LEFT) {
                 leftPressed = (event.action == ButtonAction.PRESS)
+                //onPress.invoke(event.position)
             }
         }
     }

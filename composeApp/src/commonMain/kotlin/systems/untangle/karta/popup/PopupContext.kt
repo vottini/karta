@@ -35,7 +35,7 @@ data class PopupContext(
 }
 
 @Composable
-fun rememeberPopupContext(): PopupContext {
+fun rememberPopupContext(): PopupContext {
     val (value, setValue) = remember { mutableStateOf(PopupState()) }
     return PopupContext(value, setValue)
 }

@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.SharedFlow
 data class SelectionFlowContext (
     val selectionFlow: SharedFlow<SelectionState>,
     val selectionEmitter: suspend (SelectionState) -> Unit
-)
+) {
+    suspend fun clearSelection() = selectionEmitter.invoke(SelectionState())
+}
 
 @Composable
 fun rememberSelectionContext(): SelectionFlowContext {

@@ -23,6 +23,7 @@ import systems.untangle.karta.data.DistanceUnit
 import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.network.Header
 import systems.untangle.karta.network.TileServer
+import systems.untangle.karta.popup.rememberPopupContext
 import systems.untangle.karta.selection.rememberSelectionContext
 
 val options = listOf(
@@ -77,15 +78,25 @@ val tileServerOptions = listOf(
 
 @Composable
 fun App() {
-	var clickedPosition: Coordinates? by remember { mutableStateOf(null) }
 	var tileServerIndex by remember { mutableStateOf(0) }
 	val selectedTileServer = tileServerOptions[tileServerIndex]
 
+	val selectionContext = rememberSelectionContext()
+	val popupContext = rememberPopupContext()
+
 	Karta(
-		tileServer = selectedTileServer.server,
-		onLongPress = { pointerPosition -> clickedPosition = pointerPosition.coordinates },
-		onMapDragged = { clickedPosition = null },
 		initialCoords = home,
+		tileServer = selectedTileServer.server,
+		onPress = { position ->
+			selectionContext.clearSelection()
+			popupContext.hide()
+		},
+		onMapDragged = { popupContext.hide() },
+		onLongPress = { pointerPosition ->
+			popupContext.show(
+				pointerPosition.coordinates,
+				options)
+		}
 	) {
 		val cursor = LocalCursor.current
 		val viewingRegion = LocalViewingRegion.current
@@ -102,8 +113,6 @@ fun App() {
 		 	borderWidth = 1f,
 		 	fillColor = Color.Blue
 		)
-
-		val selectionContext = rememberSelectionContext()
 
 		SelectionItem(
 			selectionContext = selectionContext,
@@ -160,8 +169,8 @@ fun App() {
 			fillAlpha = 0.6f
 		)
 
-		clickedPosition?.let { position ->
-			Popup(coords = position, options)
+		if (popupContext.hasContents) {
+			Popup(popupContext)
 		}
 
 		Column {

@@ -32,12 +32,15 @@ import systems.untangle.karta.selection.rememberSelectionContext
 
 @Composable
 fun Popup(
-    coords: Coordinates,
-    options: List <PopupItem>,
+    context: PopupContext,
     background: Color = Color.LightGray,
     color: Color = Color.Black
 ) {
     val selectionContext = rememberSelectionContext()
+    val (coords, options) = context.value
+    if (null == coords) {
+        return
+    }
 
     Geolocated(coordinates = coords) { coordsOffset ->
         Column(
