@@ -140,6 +140,7 @@ fun KMap(
         PointerFlows(
             pointerMonitor.moveFlow,
             pointerMonitor.clickFlow,
+            pointerMonitor.shortPressFlow,
             pointerMonitor.longPressFlow,
             pointerMonitor.dragFlow
         )
@@ -159,9 +160,9 @@ fun KMap(
                 When only the element itself is subscribed to dragging
                 events, the counter passes from 0 to 1 (rising edge), so
                 this is when it is still allowed to drag the map. When there
-                is one more drag listener (it plus another element), the
-                count will go from 2 to 1 (falling edge) when this element
-                stops listening to drag events
+                is one more drag listener (it plus another element), the counter
+                will be 2, immediately going from 2 to 1 (falling edge)
+                when this element stops listening to drag events
             */
 
             draggingAvailable =
@@ -171,13 +172,14 @@ fun KMap(
                     else -> false
                 }
 
+            println("DRAG IS AVAILABLE? $draggingAvailable")
             lastSubCount = subCount
         }
     }
 
     LaunchedEffect(pointerEvents) {
-        pointerEvents.longPressFlow.collect { augmentedEvent ->
-            onLongPress.invoke(augmentedEvent.position)
+        pointerEvents.longPressFlow.collect { position ->
+            onLongPress.invoke(position)
             leftPressed = false
         }
     }
@@ -216,7 +218,7 @@ fun KMap(
                         val change = event.changes.first()
                         val position = change.position
 
-                        val coordinates = convertToLatLong(zoom.toInt(), DoubleOffset(
+                        val coordinates = convertToLatLong(zoom, DoubleOffset(
                             center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
                             center.y + (position.y - viewSize.halfHeight) / kartaTileSize
                         ))

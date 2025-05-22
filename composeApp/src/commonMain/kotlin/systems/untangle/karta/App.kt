@@ -100,19 +100,12 @@ fun App() {
 	) {
 		val cursor = LocalCursor.current
 		val viewingRegion = LocalViewingRegion.current
+		val pointerEvents = LocalPointerEvents.current
 		val converter = LocalConverter.current
 		val zoom = LocalZoom.current
 
-		val pointerEvents = LocalPointerEvents.current
-		var cefetCoords by remember { mutableStateOf(cefet) }
 		var homeCoords by remember { mutableStateOf(home) }
-
-		Circle(
-		 	coords = ilhaBoi,
-		 	radius = 10f,
-		 	borderWidth = 1f,
-		 	fillColor = Color.Blue
-		)
+		var cefetCoords by remember { mutableStateOf(cefet) }
 
 		SelectionItem(
 			selectionContext = selectionContext,
@@ -124,11 +117,10 @@ fun App() {
 				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
 				dimensions = Size(40, 40),
 				onClick = { event ->
-					if (event.action == ButtonAction.PRESS) {
-						val offset = event.position.coordinates.minus(homeCoords)
-						pointerEvents.dragFlow.collect { deltaPosition ->
-							homeCoords = deltaPosition.current.coordinates.plus(offset)
-						}
+					println("ON CLICK - $event")
+					val offset = event.position.coordinates.minus(homeCoords)
+					pointerEvents.dragFlow.collect { deltaPosition ->
+						homeCoords = deltaPosition.current.coordinates.plus(offset)
 					}
 				}
 			)
@@ -155,6 +147,13 @@ fun App() {
 				dimensions = Size(50, 50)
 			)
 		}
+
+		Circle(
+			coords = ilhaBoi,
+			radius = 10f,
+			borderWidth = 1f,
+			fillColor = Color.Blue
+		)
 
 		Polyline(
 			coordsList = rota,

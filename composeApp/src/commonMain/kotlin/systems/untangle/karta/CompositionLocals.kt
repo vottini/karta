@@ -35,7 +35,8 @@ val LocalPointerEvents = compositionLocalOf {
     PointerFlows(
         MutableSharedFlow<PointerPosition>(),
         MutableSharedFlow<ButtonEvent>(),
-        MutableSharedFlow<ButtonEvent>(),
+        MutableSharedFlow<PointerPosition>(),
+        MutableSharedFlow<PointerPosition>(),
         MutableSharedFlow<DeltaPosition>()
     )
 }

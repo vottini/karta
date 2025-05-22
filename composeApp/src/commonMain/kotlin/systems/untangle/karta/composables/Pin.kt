@@ -15,13 +15,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 import systems.untangle.karta.LocalPointerEvents
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.Size
 import systems.untangle.karta.data.defineTileRegion
-import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.input.ButtonEvent
+import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.isInside
 import systems.untangle.karta.selection.ItemSelectionState
 
@@ -37,7 +38,8 @@ fun Pin(
     dimensions: Size,
     sprite: String = redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
-    onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {}
+    onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
+    onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {}
 ) {
     val pinPainter = painterResource(sprite)
     val pinSize = remember(pinPainter, dimensions) {
@@ -78,21 +80,23 @@ fun Pin(
                 halfSize)
         }
 
-        LaunchedEffect(pointerEvents, ownExtension, onHover) {
+        LaunchedEffect(pointerEvents, isHovered, ownExtension, onHover) {
             pointerEvents.moveFlow.collect { event ->
                 val newHoverState = event.isInside(ownExtension)
 
                 if (newHoverState != isHovered) {
+                    println("NEW HOVER STATE IS: $newHoverState")
                     isHovered = newHoverState
                     onHover(newHoverState)
                 }
             }
         }
 
-        LaunchedEffect(pointerEvents,isHovered, onClick) {
+        LaunchedEffect(pointerEvents, isHovered, onClick, onShortPress) {
             if (isHovered) {
-                pointerEvents.clickFlow.collect { event ->
-                    onClick(event)
+                launch { pointerEvents.clickFlow.collect { ev -> onClick(ev) } }
+                launch { pointerEvents.shortPressFlow.collect { position ->
+                    onShortPress(position) }
                 }
             }
         }
@@ -116,8 +120,9 @@ fun Pin(
     dimensions: Size,
     sprite: String = redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
-    onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {}
-) {
+    onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
+    onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+ ) {
     val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit =
         remember(itemSelectionState, onHover) {
             { hovered ->
@@ -127,14 +132,11 @@ fun Pin(
             }
         }
 
-    val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
-        remember (itemSelectionState, onClick) {
-            { event ->
-                if (event.action == ButtonAction.PRESS && !itemSelectionState.selected) {
-                    itemSelectionState.setSelected()
-                }
-
-                onClick(event)
+    val decoratedOnShortPress: suspend CoroutineScope.(PointerPosition) -> Unit =
+        remember (itemSelectionState, onShortPress) {
+            { position ->
+                if (!itemSelectionState.selected) itemSelectionState.setSelected()
+                onShortPress(position)
             }
         }
 
@@ -143,6 +145,7 @@ fun Pin(
         dimensions,
         sprite,
         decoratedOnHover,
-        decoratedOnClick
+        onClick,
+        decoratedOnShortPress
     )
 }
