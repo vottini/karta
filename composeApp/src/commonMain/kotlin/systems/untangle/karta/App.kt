@@ -6,6 +6,7 @@ import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
+import kotlinx.coroutines.launch
 
 import systems.untangle.karta.composables.Circle
 import systems.untangle.karta.composables.Karta
@@ -20,7 +21,6 @@ import systems.untangle.karta.composables.redPin
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.Size
 import systems.untangle.karta.data.DistanceUnit
-import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.network.Header
 import systems.untangle.karta.network.TileServer
 import systems.untangle.karta.popup.rememberPopupContext
@@ -117,10 +117,12 @@ fun App() {
 				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
 				dimensions = Size(40, 40),
 				onClick = { event ->
-					println("ON CLICK - $event")
 					val offset = event.position.coordinates.minus(homeCoords)
-					pointerEvents.dragFlow.collect { deltaPosition ->
-						homeCoords = deltaPosition.current.coordinates.plus(offset)
+
+					launch {
+						pointerEvents.dragFlow.collect { deltaPosition ->
+							homeCoords = deltaPosition.current.coordinates.plus(offset)
+						}
 					}
 				}
 			)

@@ -85,7 +85,6 @@ fun Pin(
                 val newHoverState = event.isInside(ownExtension)
 
                 if (newHoverState != isHovered) {
-                    println("NEW HOVER STATE IS: $newHoverState")
                     isHovered = newHoverState
                     onHover(newHoverState)
                 }
@@ -94,9 +93,13 @@ fun Pin(
 
         LaunchedEffect(pointerEvents, isHovered, onClick, onShortPress) {
             if (isHovered) {
-                launch { pointerEvents.clickFlow.collect { ev -> onClick(ev) } }
-                launch { pointerEvents.shortPressFlow.collect { position ->
-                    onShortPress(position) }
+                listOf(
+                    launch { pointerEvents.clickFlow.collect { ev -> onClick(ev) } },
+                    launch { pointerEvents.shortPressFlow.collect { position ->
+                        onShortPress(position)
+                    }}
+                ).forEach { job ->
+                    job.join()
                 }
             }
         }
@@ -125,10 +128,10 @@ fun Pin(
  ) {
     val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit =
         remember(itemSelectionState, onHover) {
-            { hovered ->
-                if (hovered && itemSelectionState.noneHovered) itemSelectionState.setHovered()
-                if (itemSelectionState.hovered && !hovered) itemSelectionState.clearHovered()
-                onHover(hovered)
+            { hoveredNow ->
+                if (hoveredNow && itemSelectionState.noneHovered) itemSelectionState.setHovered()
+                if (itemSelectionState.hovered && !hoveredNow) itemSelectionState.clearHovered()
+                onHover(hoveredNow)
             }
         }
 

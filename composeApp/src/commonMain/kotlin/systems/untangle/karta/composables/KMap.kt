@@ -95,43 +95,49 @@ fun KMap(
     onPress: suspend (PointerPosition) -> Unit,
     onLongPress: suspend (PointerPosition) -> Unit,
     onMapDragged: suspend () -> Unit,
-    content: @Composable () -> Unit)
-{
+    content: @Composable () -> Unit) {
     var zoom by remember { mutableStateOf(initialZoom) }
-    var center by remember { mutableStateOf(
-        convertToTileCoordinates(
-            initialZoom,
-            initialCoords))
+    var center by remember {
+        mutableStateOf(
+            convertToTileCoordinates(
+                initialZoom,
+                initialCoords
+            )
+        )
     }
 
     var viewingRegion by remember(center, viewSize, zoom) {
         val topLeft = DoubleOffset(
-            center.x - (viewSize.halfWidth  / kartaTileSize),
+            center.x - (viewSize.halfWidth / kartaTileSize),
             center.y - (viewSize.halfHeight / kartaTileSize)
         )
 
         val bottomRight = DoubleOffset(
-            center.x + (viewSize.halfWidth  / kartaTileSize),
+            center.x + (viewSize.halfWidth / kartaTileSize),
             center.y + (viewSize.halfHeight / kartaTileSize)
         )
 
-        mutableStateOf(Region(
-            convertToLatLong(zoom.toInt(), topLeft),
-            convertToLatLong(zoom.toInt(), bottomRight)
-        ))
+        mutableStateOf(
+            Region(
+                convertToLatLong(zoom, topLeft),
+                convertToLatLong(zoom, bottomRight)
+            )
+        )
     }
 
     var cursor by remember { mutableStateOf(Coordinates(0.0, 0.0)) }
 
     var converter by remember(viewingRegion, viewSize) {
-        mutableStateOf(Converter(
-            viewingRegion,
-            viewSize
-        ))
+        mutableStateOf(
+            Converter(
+                viewingRegion,
+                viewSize
+            )
+        )
     }
 
-    val rawMoveFlow = remember { MutableSharedFlow <PointerPosition> (extraBufferCapacity = 1) }
-    val rawButtonFlow = remember { MutableSharedFlow <AugmentedPointerEvent> (extraBufferCapacity = 1) }
+    val rawMoveFlow = remember { MutableSharedFlow<PointerPosition>(extraBufferCapacity = 1) }
+    val rawButtonFlow = remember { MutableSharedFlow<AugmentedPointerEvent>(extraBufferCapacity = 1) }
     val pointerMonitor = remember(rawButtonFlow, rawMoveFlow) {
         PointerMonitor(rawButtonFlow, rawMoveFlow)
     }
@@ -172,7 +178,6 @@ fun KMap(
                     else -> false
                 }
 
-            println("DRAG IS AVAILABLE? $draggingAvailable")
             lastSubCount = subCount
         }
     }
@@ -259,7 +264,7 @@ fun KMap(
         for (x in -horizontalTiles..horizontalTiles) {
             for (y in -verticalTiles..verticalTiles) {
                 Tile(
-                    zoom.toInt(),
+                    zoom,
                     center.x.toInt() + x,
                     center.y.toInt() + y,
                     center,

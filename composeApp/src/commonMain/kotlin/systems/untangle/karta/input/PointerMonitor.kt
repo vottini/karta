@@ -1,5 +1,9 @@
 package systems.untangle.karta.input
 
+import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
+
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.CoroutineScope
@@ -10,12 +14,11 @@ import kotlinx.coroutines.flow.SharedFlow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerButtons
 import androidx.compose.ui.input.pointer.isPrimaryPressed
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.TimeSource
 
 class PointerMonitor(
     val inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
-    val rawMoveFlow: SharedFlow <PointerPosition>
+    val rawMoveFlow: SharedFlow <PointerPosition>,
+    val longPressDuration: Duration = 500.milliseconds
 ) {
     private var clicked : Boolean = false
     private var clickStart = TimeSource.Monotonic.markNow()
@@ -40,7 +43,7 @@ class PointerMonitor(
 
     fun checkLongPress(scope: CoroutineScope, position: PointerPosition) {
         longPressJob = scope.launch {
-            delay(500)
+            delay(longPressDuration)
             _longPressFlow.emit(position)
         }
     }
@@ -103,7 +106,7 @@ class PointerMonitor(
                         else {
                             cancelLongPress()
                             val elapsed = TimeSource.Monotonic.markNow() - clickStart
-                            if (clicked && elapsed < 500.milliseconds) {
+                            if (clicked && elapsed < longPressDuration) {
                                 _shortPressFlow.emit(position)
                             }
 
@@ -115,6 +118,7 @@ class PointerMonitor(
                                     position
                                 )
                             )
+
                         }
                     }
                 } ?: run {

@@ -6,9 +6,6 @@ import systems.untangle.karta.conversion.Converter
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.Region
 import systems.untangle.karta.data.Size
-import systems.untangle.karta.input.ButtonEvent
-import systems.untangle.karta.input.DeltaPosition
-import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.PointerFlows
 
 val LocalCursor = compositionLocalOf { Coordinates(0.0, 0.0) }
@@ -33,10 +30,10 @@ val LocalConverter = compositionLocalOf {
 
 val LocalPointerEvents = compositionLocalOf {
     PointerFlows(
-        MutableSharedFlow<PointerPosition>(),
-        MutableSharedFlow<ButtonEvent>(),
-        MutableSharedFlow<PointerPosition>(),
-        MutableSharedFlow<PointerPosition>(),
-        MutableSharedFlow<DeltaPosition>()
+        MutableSharedFlow(),
+        MutableSharedFlow(),
+        MutableSharedFlow(),
+        MutableSharedFlow(),
+        MutableSharedFlow()
     )
 }
