@@ -12,6 +12,8 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
+
+import kotlinx.coroutines.launch
 import systems.untangle.karta.LocalConverter
 import systems.untangle.karta.LocalCursor
 import systems.untangle.karta.LocalPointerEvents
@@ -32,6 +34,7 @@ import systems.untangle.karta.input.PointerButton
 import systems.untangle.karta.input.PointerFlows
 import systems.untangle.karta.input.PointerMonitor
 import systems.untangle.karta.input.PointerPosition
+import systems.untangle.karta.input.exclusiveListener
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
 
@@ -95,7 +98,8 @@ fun KMap(
     onPress: suspend (PointerPosition) -> Unit,
     onLongPress: suspend (PointerPosition) -> Unit,
     onMapDragged: suspend () -> Unit,
-    content: @Composable () -> Unit) {
+    content: @Composable () -> Unit)
+{
     var zoom by remember { mutableStateOf(initialZoom) }
     var center by remember {
         mutableStateOf(
@@ -154,38 +158,37 @@ fun KMap(
 
     var leftPressed by remember { mutableStateOf(false) }
     var draggingAvailable by remember { mutableStateOf(true) }
+    var pressAvailable by remember { mutableStateOf(true) }
 
     LaunchedEffect(pointerMonitor, iteractive) {
-        if (!iteractive) return@LaunchedEffect
-        pointerMonitor.listen(this)
-
-        var lastSubCount = 0
-        pointerMonitor.dragSubscribersFlow.collect { subCount ->
-
-            /*
-                When only the element itself is subscribed to dragging
-                events, the counter passes from 0 to 1 (rising edge), so
-                this is when it is still allowed to drag the map. When there
-                is one more drag listener (it plus another element), the counter
-                will be 2, immediately going from 2 to 1 (falling edge)
-                when this element stops listening to drag events
-            */
-
-            draggingAvailable =
-                when (subCount) {
-                    0 -> true
-                    1 -> (lastSubCount == 0)
-                    else -> false
-                }
-
-            lastSubCount = subCount
+        if (!iteractive) {
+            return@LaunchedEffect
         }
+
+        exclusiveListener(pointerMonitor.dragSubscribersFlow) { draggingAvailable = it }
+        exclusiveListener(pointerMonitor.pressSubscribersFlow) { pressAvailable = it }
+        pointerMonitor.listen(this)
     }
 
-    LaunchedEffect(pointerEvents) {
-        pointerEvents.longPressFlow.collect { position ->
-            onLongPress.invoke(position)
-            leftPressed = false
+    LaunchedEffect(pointerEvents, pressAvailable) {
+        if (pressAvailable) {
+            val shortPressMonitoring = launch {
+                pointerEvents.shortPressFlow.collect { position ->
+                    onPress.invoke(position)
+                }
+            }
+
+            val longPressMonitoring = launch {
+                pointerEvents.longPressFlow.collect { position ->
+                    onLongPress.invoke(position)
+                    leftPressed = false
+                }
+            }
+
+            listOf(
+                shortPressMonitoring,
+                longPressMonitoring
+            ).forEach { job ->  job.join() }
         }
     }
 
@@ -193,7 +196,6 @@ fun KMap(
         pointerEvents.clickFlow.collect { event ->
             if (event.button == PointerButton.LEFT) {
                 leftPressed = (event.action == ButtonAction.PRESS)
-                //onPress.invoke(event.position)
             }
         }
     }

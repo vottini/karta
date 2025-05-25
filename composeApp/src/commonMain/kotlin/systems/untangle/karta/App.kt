@@ -87,14 +87,15 @@ fun App() {
 	Karta(
 		initialCoords = home,
 		tileServer = selectedTileServer.server,
+		onMapDragged = { popupContext.hide() },
 		onPress = { position ->
 			selectionContext.clearSelection()
 			popupContext.hide()
 		},
-		onMapDragged = { popupContext.hide() },
 		onLongPress = { pointerPosition ->
+			val coordinates = pointerPosition.coordinates
 			popupContext.show(
-				pointerPosition.coordinates,
+				coordinates,
 				options)
 		}
 	) {
@@ -117,11 +118,17 @@ fun App() {
 				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
 				dimensions = Size(40, 40),
 				onClick = { event ->
-					val offset = event.position.coordinates.minus(homeCoords)
+					if (itemState.selected) {
+						launch {
+							val offset = event.position
+								.coordinates
+								.minus(homeCoords)
 
-					launch {
-						pointerEvents.dragFlow.collect { deltaPosition ->
-							homeCoords = deltaPosition.current.coordinates.plus(offset)
+							pointerEvents.dragFlow.collect { deltaPosition ->
+								homeCoords = deltaPosition.current
+									.coordinates
+									.plus(offset)
+							}
 						}
 					}
 				}

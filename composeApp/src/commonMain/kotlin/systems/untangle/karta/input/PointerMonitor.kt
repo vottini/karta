@@ -38,7 +38,7 @@ class PointerMonitor(
     val longPressFlow: SharedFlow <PointerPosition> get() = _longPressFlow
     val dragFlow: SharedFlow <DeltaPosition> get() = _dragFlow
 
-    val clickSubscribersFlow: SharedFlow <Int> get() = _clickFlow.subscriptionCount
+    val pressSubscribersFlow: SharedFlow <Int> get() = _shortPressFlow.subscriptionCount
     val dragSubscribersFlow: SharedFlow <Int> get() = _dragFlow.subscriptionCount
 
     fun checkLongPress(scope: CoroutineScope, position: PointerPosition) {
@@ -53,8 +53,9 @@ class PointerMonitor(
         longPressJob = null
     }
 
-    fun listen(scope: CoroutineScope) {
-        scope.launch {
+    suspend fun listen(scope: CoroutineScope) {
+
+        val moveMonitoring = scope.launch {
             rawMoveFlow.collect { position ->
                 cancelLongPress()
 
@@ -81,7 +82,7 @@ class PointerMonitor(
             }
         }
 
-        scope.launch {
+        val inputMonitoring = scope.launch {
             inputButtonFlow.collect { augmentedEvent ->
                 val ( event, position ) = augmentedEvent
                 val current = event.buttons
@@ -141,6 +142,11 @@ class PointerMonitor(
                 lastButtonState = event.buttons
             }
         }
+
+        listOf(
+            moveMonitoring,
+            inputMonitoring
+        ).forEach { job -> job.join() }
     }
 
 }
