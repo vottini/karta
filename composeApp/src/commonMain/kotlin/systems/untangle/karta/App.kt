@@ -26,12 +26,6 @@ import systems.untangle.karta.network.TileServer
 import systems.untangle.karta.popup.rememberPopupContext
 import systems.untangle.karta.selection.rememberSelectionContext
 
-val options = listOf(
-	PopupItem("Create new Pin") { println("LALA") },
-	PopupItem("Create new Circle") { println("LELE") },
-	PopupItem("Start new Polyline") { println("LILI") }
-)
-
 val home = Coordinates(-20.296099, -40.348038)
 val cefet = Coordinates(-20.310563, -40.318772)
 val ilhaBoi = Coordinates(-20.310662, -40.2815008)
@@ -75,14 +69,41 @@ val tileServerOptions = listOf(
 	TileServerOption("SMAPS", smapsServer)
 )
 
+data class PointOfInterest(
+	val name: String,
+	val coordinates: Coordinates
+)
+
 
 @Composable
 fun App() {
 	var tileServerIndex by remember { mutableStateOf(0) }
 	val selectedTileServer = tileServerOptions[tileServerIndex]
 
+	val createdPins = remember { mutableStateListOf<PointOfInterest>() }
+	val createdCircles = remember { mutableStateListOf<PointOfInterest>() }
+
 	val selectionContext = rememberSelectionContext()
 	val popupContext = rememberPopupContext()
+
+	val options = remember(createdPins) {
+		listOf(
+			PopupItem("Create new Pin") { coords ->
+				val pinName = "PIN${createdPins.size}"
+				val poi = PointOfInterest(pinName, coords)
+				createdPins.add(poi)
+			},
+
+			PopupItem("Create new Circle") { coords ->
+				val pinName = "CIRCLE${createdCircles.size}"
+				val poi = PointOfInterest(pinName, coords)
+				createdCircles.add(poi)
+			},
+
+			PopupItem("Start new Polyline") { println("LILI") }
+		)
+	}
+
 
 	Karta(
 		initialCoords = home,
@@ -116,7 +137,7 @@ fun App() {
 				coords = homeCoords,
 				itemSelectionState = itemState,
 				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
-				dimensions = Size(40, 40),
+				dimensions = Size(60, 60),
 				onClick = { event ->
 					if (itemState.selected) {
 						launch {
@@ -153,8 +174,45 @@ fun App() {
 				coords = cefetCoords,
 				itemSelectionState = itemState,
 				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
-				dimensions = Size(50, 50)
+				dimensions = Size(60, 60)
 			)
+		}
+
+		createdPins.forEach { poi ->
+			SelectionItem(
+				selectionContext = selectionContext,
+				itemId = poi.name
+			) { itemState ->
+				Pin(
+					coords = poi.coordinates,
+					itemSelectionState = itemState,
+					sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
+					dimensions = Size(60, 60),
+					onLongPress = {
+						popupContext.show(
+							poi.coordinates,
+							listOf (
+								PopupItem("Remove Pin") {
+									createdPins.remove(poi)
+								},
+							))
+					}
+				)
+			}
+		}
+
+		createdCircles.forEach { poi ->
+			SelectionItem(
+				selectionContext = selectionContext,
+				itemId = poi.name
+			) { itemState ->
+				Circle(
+					coords = poi.coordinates,
+					radius = 10f,
+					borderWidth = 1f,
+					fillColor = if (itemState.selected) Color.Green else Color.Blue
+				)
+			}
 		}
 
 		Circle(

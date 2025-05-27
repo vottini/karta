@@ -77,8 +77,9 @@ fun Popup(
                             .pointerInput(Unit) {
                                 awaitPointerEventScope {
                                     while (true) {
-                                        if (awaitPointerEvent().type == PointerEventType.Press) {
-                                            option.onClick.invoke()
+                                        val event = awaitPointerEvent()
+                                        if (event.type == PointerEventType.Press) {
+                                            option.onClick.invoke(coords)
                                         }
                                     }
                                 }

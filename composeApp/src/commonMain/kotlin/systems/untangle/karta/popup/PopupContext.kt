@@ -20,8 +20,8 @@ data class PopupContext(
         }
 
         val decoratedOptions = options.map { item ->
-            PopupItem(item.label) {
-                item.onClick.invoke()
+            PopupItem(item.label) { coords ->
+                item.onClick.invoke(coords)
                 hide()
             }
         }

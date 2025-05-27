@@ -20,11 +20,12 @@ class PointerMonitor(
     val rawMoveFlow: SharedFlow <PointerPosition>,
     val longPressDuration: Duration = 500.milliseconds
 ) {
-    private var clicked : Boolean = false
+    private var clicked: Boolean = false
     private var clickStart = TimeSource.Monotonic.markNow()
-    private var lastButtonState : PointerButtons? = null
-    private var lastPosition : PointerPosition? = null
-    private var longPressJob : Job? = null
+    private var lastButtonState: PointerButtons? = null
+    private var lastPosition: PointerPosition? = null
+    private var longPressJob: Job? = null
+    private var dragging: Boolean = false
 
     private val _moveFlow = MutableSharedFlow <PointerPosition> ()
     private val _clickFlow = MutableSharedFlow <ButtonEvent> ()
@@ -64,6 +65,7 @@ class PointerMonitor(
                     return@collect
                 }
 
+                dragging = true
                 lastPosition?.let { previous ->
                     val diff = Offset(
                         position.offset.x - previous.offset.x,
@@ -107,11 +109,12 @@ class PointerMonitor(
                         else {
                             cancelLongPress()
                             val elapsed = TimeSource.Monotonic.markNow() - clickStart
-                            if (clicked && elapsed < longPressDuration) {
+                            if (clicked && elapsed < longPressDuration && !dragging) {
                                 _shortPressFlow.emit(position)
                             }
 
                             clicked = false
+                            dragging = false
                             _clickFlow.emit(
                                 ButtonEvent(
                                     PointerButton.LEFT,

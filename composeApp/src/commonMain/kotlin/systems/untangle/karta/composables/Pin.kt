@@ -39,7 +39,8 @@ fun Pin(
     sprite: String = redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
-    onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {}
+    onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onLongPress: suspend CoroutineScope.(PointerPosition) -> Unit = {}
 ) {
     val pinPainter = painterResource(sprite)
     val pinSize = remember(pinPainter, dimensions) {
@@ -81,8 +82,8 @@ fun Pin(
         }
 
         LaunchedEffect(pointerEvents, isHovered, ownExtension, onHover) {
-            pointerEvents.moveFlow.collect { event ->
-                val newHoverState = event.isInside(ownExtension)
+            pointerEvents.moveFlow.collect { pointerPosition ->
+                val newHoverState = pointerPosition.isInside(ownExtension)
 
                 if (newHoverState != isHovered) {
                     isHovered = newHoverState
@@ -95,9 +96,8 @@ fun Pin(
             if (isHovered) {
                 listOf(
                     launch { pointerEvents.clickFlow.collect { ev -> onClick(ev) } },
-                    launch { pointerEvents.shortPressFlow.collect { position ->
-                        onShortPress(position)
-                    }}
+                    launch { pointerEvents.shortPressFlow.collect { position -> onShortPress(position) } },
+                    launch { pointerEvents.longPressFlow.collect { position -> onLongPress(position) } },
                 ).forEach { job ->
                     job.join()
                 }
@@ -125,6 +125,7 @@ fun Pin(
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
     onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onLongPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
  ) {
     val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit =
         remember(itemSelectionState, onHover) {
@@ -143,12 +144,21 @@ fun Pin(
             }
         }
 
+    val decoratedOnLongPress: suspend CoroutineScope.(PointerPosition) -> Unit =
+        remember (itemSelectionState, onLongPress) {
+            { position ->
+                if (!itemSelectionState.selected) itemSelectionState.setSelected()
+                onLongPress(position)
+            }
+        }
+
     Pin(
         coords,
         dimensions,
         sprite,
         decoratedOnHover,
         onClick,
-        decoratedOnShortPress
+        decoratedOnShortPress,
+        decoratedOnLongPress
     )
 }
