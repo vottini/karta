@@ -14,9 +14,6 @@ import systems.untangle.karta.composables.Pin
 import systems.untangle.karta.composables.Polyline
 import systems.untangle.karta.popup.Popup
 import systems.untangle.karta.popup.PopupItem
-import systems.untangle.karta.composables.bluePin
-import systems.untangle.karta.composables.greenPin
-import systems.untangle.karta.composables.redPin
 
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.Size
@@ -25,6 +22,23 @@ import systems.untangle.karta.network.Header
 import systems.untangle.karta.network.TileServer
 import systems.untangle.karta.popup.rememberPopupContext
 import systems.untangle.karta.selection.rememberSelectionContext
+import systems.untangle.karta.selection.ItemSelectionState
+
+import karta.composeapp.generated.resources.Res
+import karta.composeapp.generated.resources.redPin
+import karta.composeapp.generated.resources.bluePin
+import karta.composeapp.generated.resources.greenPin
+import org.jetbrains.compose.resources.DrawableResource
+
+val redPin = Res.drawable.redPin
+val bluePin = Res.drawable.bluePin
+val greenPin = Res.drawable.greenPin
+
+fun choosePinResource(itemState: ItemSelectionState): DrawableResource {
+	return if (itemState.selected) greenPin
+		else if (itemState.hovered) bluePin
+		else redPin
+}
 
 val home = Coordinates(-20.296099, -40.348038)
 val cefet = Coordinates(-20.310563, -40.318772)
@@ -136,18 +150,16 @@ fun App() {
 			Pin(
 				coords = homeCoords,
 				itemSelectionState = itemState,
-				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
+				sprite = choosePinResource(itemState),
 				dimensions = Size(60, 60),
 				onClick = { event ->
 					if (itemState.selected) {
 						launch {
-							val offset = event.position
-								.coordinates
+							val offset = event.position.coordinates
 								.minus(homeCoords)
 
 							pointerEvents.dragFlow.collect { deltaPosition ->
-								homeCoords = deltaPosition.current
-									.coordinates
+								homeCoords = deltaPosition.current.coordinates
 									.plus(offset)
 							}
 						}
@@ -173,7 +185,7 @@ fun App() {
 			Pin(
 				coords = cefetCoords,
 				itemSelectionState = itemState,
-				sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
+				sprite = choosePinResource(itemState),
 				dimensions = Size(60, 60)
 			)
 		}
@@ -186,7 +198,7 @@ fun App() {
 				Pin(
 					coords = poi.coordinates,
 					itemSelectionState = itemState,
-					sprite = if (itemState.selected) greenPin else if (itemState.hovered) bluePin else redPin,
+					sprite = choosePinResource(itemState),
 					dimensions = Size(60, 60),
 					onLongPress = {
 						popupContext.show(

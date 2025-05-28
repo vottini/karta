@@ -9,7 +9,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Modifier
 
 import coil3.compose.AsyncImage
@@ -22,6 +21,10 @@ import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.Size
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
+
+import karta.composeapp.generated.resources.Res
+import karta.composeapp.generated.resources.grid
+import org.jetbrains.compose.resources.painterResource
 
 @Composable
 fun Tile(
@@ -54,7 +57,7 @@ fun Tile(
         AsyncImage(
             contentDescription = null,
             contentScale = ContentScale.FillBounds,
-            placeholder = painterResource("composeResources/karta.composeapp.generated.resources/drawable/grid.png"),
+            placeholder = painterResource(Res.drawable.grid),
             modifier = Modifier.height(kartaTileSize.dp).width(kartaTileSize.dp),
             model = ImageRequest.Builder(LocalPlatformContext.current)
                 .data(formattedUrl)

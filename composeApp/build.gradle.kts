@@ -48,6 +48,13 @@ kotlin {
     }
 }
 
+configurations.all {
+    resolutionStrategy {
+        force("androidx.core:core:1.13.1")
+        force("androidx.core:core-ktx:1.13.1")
+    }
+}
+
 android {
     namespace = "systems.untangle.karta"
     compileSdk = libs.versions.android.compileSdk.get().toInt()

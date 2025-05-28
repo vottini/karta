@@ -6,7 +6,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
@@ -26,9 +25,10 @@ import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.isInside
 import systems.untangle.karta.selection.ItemSelectionState
 
-const val redPin = "composeResources/karta.composeapp.generated.resources/drawable/pin.png"
-const val greenPin = "composeResources/karta.composeapp.generated.resources/drawable/greenPin.png"
-const val bluePin = "composeResources/karta.composeapp.generated.resources/drawable/bluePin.png"
+import karta.composeapp.generated.resources.Res
+import karta.composeapp.generated.resources.redPin
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
 fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 
@@ -36,7 +36,7 @@ fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 fun Pin(
     coords: Coordinates,
     dimensions: Size,
-    sprite: String = redPin,
+    sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
     onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
@@ -121,7 +121,7 @@ fun Pin(
     coords: Coordinates,
     itemSelectionState: ItemSelectionState,
     dimensions: Size,
-    sprite: String = redPin,
+    sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
     onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
