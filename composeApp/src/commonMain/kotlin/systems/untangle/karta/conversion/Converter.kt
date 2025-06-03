@@ -3,6 +3,7 @@ package systems.untangle.karta.conversion
 import kotlin.math.PI
 import kotlin.math.abs
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.Region
 import systems.untangle.karta.data.Size
@@ -12,9 +13,13 @@ import systems.untangle.karta.data.intersects
 const val earthRadiusMeters = 6378137.0
 const val radiansToDegrees = 180.0 / PI
 
-class Converter(val viewingRegion: Region, viewSize: Size) {
-    val horizontalPixelDensity = viewSize.width.toDouble() / viewingRegion.deltaLongitude
-    val verticalPixelDensity = viewSize.height.toDouble() / viewingRegion.deltaLatitude
+class Converter(
+    private val viewingRegion: Region,
+    private val viewSize: Size,
+    private val pixelDensity: Float
+) {
+    private val horizontalPxDelta = (viewSize.width / pixelDensity) / viewingRegion.deltaLongitude
+    private val verticalPxDelta = (viewSize.height / pixelDensity) / viewingRegion.deltaLatitude
 
     val tileRegion by lazy {
         TileRegion(
@@ -28,8 +33,8 @@ class Converter(val viewingRegion: Region, viewSize: Size) {
         val diff = coordinates.minus(origin)
 
         return IntOffset(
-            (diff.longitude * horizontalPixelDensity).toInt(),
-            (diff.latitude * verticalPixelDensity).toInt()
+            (diff.longitude * horizontalPxDelta).toInt(),
+            (diff.latitude * verticalPxDelta).toInt()
         )
     }
 
@@ -56,6 +61,7 @@ class Converter(val viewingRegion: Region, viewSize: Size) {
 
     fun metersToPixels(distanceInMeters: Float) : Float {
         val angle = distanceInMeters / earthRadiusMeters
-        return abs(angle * horizontalPixelDensity * radiansToDegrees).toFloat()
+        val totalPixels = horizontalPxDelta * pixelDensity
+        return abs(angle * totalPixels * radiansToDegrees).toFloat()
     }
 }

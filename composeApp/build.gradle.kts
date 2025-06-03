@@ -1,6 +1,5 @@
 
 import org.jetbrains.compose.desktop.application.dsl.TargetFormat
-import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -12,7 +11,6 @@ plugins {
 
 kotlin {
     androidTarget {
-        @OptIn(ExperimentalKotlinGradlePluginApi::class)
         compilerOptions {
             jvmTarget.set(JvmTarget.JVM_11)
         }
@@ -37,8 +35,9 @@ kotlin {
             implementation(compose.components.uiToolingPreview)
             implementation(libs.androidx.lifecycle.viewmodel)
             implementation(libs.androidx.lifecycle.runtime.compose)
-			implementation("io.coil-kt.coil3:coil-compose:3.1.0")
-			implementation("io.coil-kt.coil3:coil-network-okhttp:3.1.0")
+            implementation(libs.coil)
+            implementation(libs.coil.compose)
+            implementation(libs.slf4f)
         }
 
         desktopMain.dependencies {

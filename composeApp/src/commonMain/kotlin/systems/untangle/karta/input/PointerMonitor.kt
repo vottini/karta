@@ -15,10 +15,12 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.PointerButtons
 import androidx.compose.ui.input.pointer.isPrimaryPressed
 
+import systems.untangle.karta.getLogger
+
 class PointerMonitor(
-    val inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
-    val rawMoveFlow: SharedFlow <PointerPosition>,
-    val longPressDuration: Duration = 500.milliseconds
+    private val inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
+    private val rawMoveFlow: SharedFlow <PointerPosition>,
+    private val longPressDuration: Duration = 500.milliseconds
 ) {
     private var clicked: Boolean = false
     private var clickStart = TimeSource.Monotonic.markNow()
@@ -42,21 +44,21 @@ class PointerMonitor(
     val pressSubscribersFlow: SharedFlow <Int> get() = _shortPressFlow.subscriptionCount
     val dragSubscribersFlow: SharedFlow <Int> get() = _dragFlow.subscriptionCount
 
-    fun checkLongPress(scope: CoroutineScope, position: PointerPosition) {
+    private fun checkLongPress(scope: CoroutineScope, position: PointerPosition) {
         longPressJob = scope.launch {
             delay(longPressDuration)
             _longPressFlow.emit(position)
         }
     }
 
-    fun cancelLongPress() {
+    private fun cancelLongPress() {
         longPressJob?.cancel()
         longPressJob = null
     }
 
-    suspend fun listen(scope: CoroutineScope) {
+    fun listen(scope: CoroutineScope) {
 
-        val moveMonitoring = scope.launch {
+        scope.launch {
             rawMoveFlow.collect { position ->
                 cancelLongPress()
 
@@ -84,10 +86,12 @@ class PointerMonitor(
             }
         }
 
-        val inputMonitoring = scope.launch {
+        scope.launch {
             inputButtonFlow.collect { augmentedEvent ->
                 val ( event, position ) = augmentedEvent
                 val current = event.buttons
+
+                //getLogger().i("CORTE", "CLICK $current")
 
                 lastButtonState?.let { previous ->
                     if (current.isPrimaryPressed != previous.isPrimaryPressed) {
@@ -145,11 +149,6 @@ class PointerMonitor(
                 lastButtonState = event.buttons
             }
         }
-
-        listOf(
-            moveMonitoring,
-            inputMonitoring
-        ).forEach { job -> job.join() }
     }
 
 }

@@ -1,7 +1,5 @@
 package systems.untangle.karta.data
 
-import androidx.compose.ui.unit.IntOffset
-
 data class Size(
     val width: Int,
     val height: Int

@@ -121,9 +121,10 @@ fun App() {
 
 	Karta(
 		initialCoords = home,
+		initialZoom = 13,
 		tileServer = selectedTileServer.server,
 		onMapDragged = { popupContext.hide() },
-		onPress = { position ->
+		onPress = {
 			selectionContext.clearSelection()
 			popupContext.hide()
 		},
@@ -141,32 +142,12 @@ fun App() {
 		val zoom = LocalZoom.current
 
 		var homeCoords by remember { mutableStateOf(home) }
-		var cefetCoords by remember { mutableStateOf(cefet) }
+		val cefetCoords by remember { mutableStateOf(cefet) }
 
 		SelectionItem(
 			selectionContext = selectionContext,
 			itemId = "home"
 		) { itemState ->
-			Pin(
-				coords = homeCoords,
-				itemSelectionState = itemState,
-				sprite = choosePinResource(itemState),
-				dimensions = Size(60, 60),
-				onClick = { event ->
-					if (itemState.selected) {
-						launch {
-							val offset = event.position.coordinates
-								.minus(homeCoords)
-
-							pointerEvents.dragFlow.collect { deltaPosition ->
-								homeCoords = deltaPosition.current.coordinates
-									.plus(offset)
-							}
-						}
-					}
-				}
-			)
-
 			for (k in 1..3) {
 				Circle(
 					coords = homeCoords,
@@ -176,6 +157,24 @@ fun App() {
 					fillColor = null
 				)
 			}
+
+			Pin(
+				coords = homeCoords,
+				itemSelectionState = itemState,
+				sprite = choosePinResource(itemState),
+				dimensions = Size(60, 60),
+				onClick = { event ->
+					if (itemState.selected) {
+						launch {
+							val offset = event.position.coordinates.minus(homeCoords)
+							pointerEvents.dragFlow.collect { deltaPosition ->
+								homeCoords = deltaPosition.current.coordinates
+									.plus(offset)
+							}
+						}
+					}
+				}
+			)
 		}
 
 		SelectionItem(

@@ -12,6 +12,8 @@ import androidx.compose.ui.input.pointer.PointerEventType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
 
 import kotlinx.coroutines.launch
 import systems.untangle.karta.LocalConverter
@@ -28,6 +30,8 @@ import systems.untangle.karta.conversion.Converter
 
 import systems.untangle.karta.conversion.convertToLatLong
 import systems.untangle.karta.conversion.convertToTileCoordinates
+import systems.untangle.karta.conversion.dpToPx
+import systems.untangle.karta.conversion.toPixels
 import systems.untangle.karta.input.AugmentedPointerEvent
 import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.input.PointerButton
@@ -38,7 +42,10 @@ import systems.untangle.karta.input.exclusiveListener
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
 
-/**
+
+import systems.untangle.karta.getLogger
+
+/*
  *
  * Indexed Coordinates
  *
@@ -88,6 +95,10 @@ import systems.untangle.karta.network.TileServer
  *
  */
 
+/**
+ * Event capture and tile display composable
+ */
+
 @Composable
 fun KMap(
     tileServer: TileServer,
@@ -110,15 +121,19 @@ fun KMap(
         )
     }
 
-    var viewingRegion by remember(center, viewSize, zoom) {
+    val pixelDensity = LocalDensity.current.density
+    val viewingRegion by remember(center, viewSize, zoom, pixelDensity) {
+        val deltaWidth = (viewSize.halfWidth / kartaTileSize.dp.toPixels(pixelDensity))
+        val deltaHeight = (viewSize.halfHeight / kartaTileSize.dp.toPixels(pixelDensity))
+
         val topLeft = DoubleOffset(
-            center.x - (viewSize.halfWidth / kartaTileSize),
-            center.y - (viewSize.halfHeight / kartaTileSize)
+            center.x - deltaWidth,
+            center.y - deltaHeight
         )
 
         val bottomRight = DoubleOffset(
-            center.x + (viewSize.halfWidth / kartaTileSize),
-            center.y + (viewSize.halfHeight / kartaTileSize)
+            center.x + deltaWidth,
+            center.y + deltaHeight
         )
 
         mutableStateOf(
@@ -130,12 +145,12 @@ fun KMap(
     }
 
     var cursor by remember { mutableStateOf(Coordinates(0.0, 0.0)) }
-
-    var converter by remember(viewingRegion, viewSize) {
+    val converter by remember(viewingRegion, viewSize, pixelDensity) {
         mutableStateOf(
             Converter(
                 viewingRegion,
-                viewSize
+                viewSize,
+                pixelDensity
             )
         )
     }
@@ -172,23 +187,18 @@ fun KMap(
 
     LaunchedEffect(pointerEvents, pressAvailable) {
         if (pressAvailable) {
-            val shortPressMonitoring = launch {
+            launch {
                 pointerEvents.shortPressFlow.collect { position ->
                     onPress.invoke(position)
                 }
             }
 
-            val longPressMonitoring = launch {
+            launch {
                 pointerEvents.longPressFlow.collect { position ->
                     onLongPress.invoke(position)
                     leftPressed = false
                 }
             }
-
-            listOf(
-                shortPressMonitoring,
-                longPressMonitoring
-            ).forEach { job ->  job.join() }
         }
     }
 
@@ -222,6 +232,7 @@ fun KMap(
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
+                        //getLogger().i("CORTE", "TYPE ${event.type} => ${event.changes.first()}")
                         val change = event.changes.first()
                         val position = change.position
 

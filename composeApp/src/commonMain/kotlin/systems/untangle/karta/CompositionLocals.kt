@@ -22,9 +22,10 @@ val LocalConverter = compositionLocalOf {
     Converter(
         Region(
             Coordinates(1.0, 0.0),
-        Coordinates(0.0, 1.0)
+            Coordinates(0.0, 1.0)
         ),
-        Size(0, 0)
+        Size(0, 0),
+        1f
     )
 }
 
