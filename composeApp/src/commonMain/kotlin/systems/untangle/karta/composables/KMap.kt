@@ -19,18 +19,17 @@ import kotlinx.coroutines.launch
 import systems.untangle.karta.LocalConverter
 import systems.untangle.karta.LocalCursor
 import systems.untangle.karta.LocalPointerEvents
-import systems.untangle.karta.LocalViewingRegion
+import systems.untangle.karta.LocalViewingBoundingBox
 import systems.untangle.karta.LocalZoom
 
 import systems.untangle.karta.data.Coordinates
-import systems.untangle.karta.data.Size
-import systems.untangle.karta.data.Region
+import systems.untangle.karta.data.PxSize
+import systems.untangle.karta.data.BoundingBox
 import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.conversion.Converter
 
 import systems.untangle.karta.conversion.convertToLatLong
 import systems.untangle.karta.conversion.convertToTileCoordinates
-import systems.untangle.karta.conversion.dpToPx
 import systems.untangle.karta.conversion.toPixels
 import systems.untangle.karta.input.AugmentedPointerEvent
 import systems.untangle.karta.input.ButtonAction
@@ -41,9 +40,6 @@ import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.exclusiveListener
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
-
-
-import systems.untangle.karta.getLogger
 
 /*
  *
@@ -104,7 +100,7 @@ fun KMap(
     tileServer: TileServer,
     initialZoom: Int,
     initialCoords: Coordinates,
-    viewSize: Size,
+    viewPxSize: PxSize,
     iteractive: Boolean,
     onPress: suspend (PointerPosition) -> Unit,
     onLongPress: suspend (PointerPosition) -> Unit,
@@ -122,9 +118,9 @@ fun KMap(
     }
 
     val pixelDensity = LocalDensity.current.density
-    val viewingRegion by remember(center, viewSize, zoom, pixelDensity) {
-        val deltaWidth = (viewSize.halfWidth / kartaTileSize.dp.toPixels(pixelDensity))
-        val deltaHeight = (viewSize.halfHeight / kartaTileSize.dp.toPixels(pixelDensity))
+    val viewingBoundingBox by remember(center, viewPxSize, zoom, pixelDensity) {
+        val deltaWidth = (viewPxSize.halfWidth / kartaTileSize.dp.toPixels(pixelDensity))
+        val deltaHeight = (viewPxSize.halfHeight / kartaTileSize.dp.toPixels(pixelDensity))
 
         val topLeft = DoubleOffset(
             center.x - deltaWidth,
@@ -137,7 +133,7 @@ fun KMap(
         )
 
         mutableStateOf(
-            Region(
+            BoundingBox(
                 convertToLatLong(zoom, topLeft),
                 convertToLatLong(zoom, bottomRight)
             )
@@ -145,11 +141,11 @@ fun KMap(
     }
 
     var cursor by remember { mutableStateOf(Coordinates(0.0, 0.0)) }
-    val converter by remember(viewingRegion, viewSize, pixelDensity) {
+    val converter by remember(viewingBoundingBox, viewPxSize, pixelDensity) {
         mutableStateOf(
             Converter(
-                viewingRegion,
-                viewSize,
+                viewingBoundingBox,
+                viewPxSize,
                 pixelDensity
             )
         )
@@ -237,8 +233,8 @@ fun KMap(
                         val position = change.position
 
                         val coordinates = convertToLatLong(zoom, DoubleOffset(
-                            center.x + (position.x - viewSize.halfWidth)  / kartaTileSize,
-                            center.y + (position.y - viewSize.halfHeight) / kartaTileSize
+                            center.x + (position.x - viewPxSize.halfWidth)  / kartaTileSize,
+                            center.y + (position.y - viewPxSize.halfHeight) / kartaTileSize
                         ))
 
                         when (event.type) {
@@ -271,8 +267,8 @@ fun KMap(
                 }
             }
     ) {
-        val horizontalTiles = remember(viewSize) { ((viewSize.width / kartaTileSize) / 2) + 1 }
-        val verticalTiles = remember(viewSize) { ((viewSize.height / kartaTileSize) / 2) + 1 }
+        val horizontalTiles = remember(viewPxSize) { ((viewPxSize.width / kartaTileSize) / 2) + 1 }
+        val verticalTiles = remember(viewPxSize) { ((viewPxSize.height / kartaTileSize) / 2) + 1 }
 
         for (x in -horizontalTiles..horizontalTiles) {
             for (y in -verticalTiles..verticalTiles) {
@@ -281,7 +277,7 @@ fun KMap(
                     center.x.toInt() + x,
                     center.y.toInt() + y,
                     center,
-                    viewSize,
+                    viewPxSize,
                     tileServer)
             }
         }
@@ -295,7 +291,7 @@ fun KMap(
         CompositionLocalProvider(
             LocalZoom provides zoom,
             LocalCursor provides cursor,
-            LocalViewingRegion provides viewingRegion,
+            LocalViewingBoundingBox provides viewingBoundingBox,
             LocalConverter provides converter,
             LocalPointerEvents provides pointerEvents
         ) {

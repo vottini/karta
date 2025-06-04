@@ -16,7 +16,7 @@ import systems.untangle.karta.popup.Popup
 import systems.untangle.karta.popup.PopupItem
 
 import systems.untangle.karta.data.Coordinates
-import systems.untangle.karta.data.Size
+import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.DistanceUnit
 import systems.untangle.karta.network.Header
 import systems.untangle.karta.network.TileServer
@@ -136,7 +136,7 @@ fun App() {
 		}
 	) {
 		val cursor = LocalCursor.current
-		val viewingRegion = LocalViewingRegion.current
+		val viewingRegion = LocalViewingBoundingBox.current
 		val pointerEvents = LocalPointerEvents.current
 		val converter = LocalConverter.current
 		val zoom = LocalZoom.current
@@ -162,7 +162,7 @@ fun App() {
 				coords = homeCoords,
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = Size(60, 60),
+				dimensions = PxSize(60, 60),
 				onClick = { event ->
 					if (itemState.selected) {
 						launch {
@@ -185,7 +185,7 @@ fun App() {
 				coords = cefetCoords,
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = Size(60, 60)
+				dimensions = PxSize(60, 60)
 			)
 		}
 
@@ -198,7 +198,7 @@ fun App() {
 					coords = poi.coordinates,
 					itemSelectionState = itemState,
 					sprite = choosePinResource(itemState),
-					dimensions = Size(60, 60),
+					dimensions = PxSize(60, 60),
 					onLongPress = {
 						popupContext.show(
 							poi.coordinates,

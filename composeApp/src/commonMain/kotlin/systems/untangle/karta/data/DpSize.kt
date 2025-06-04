@@ -1,6 +1,8 @@
 package systems.untangle.karta.data
 
-data class Size(
+import androidx.compose.ui.unit.Density
+
+data class DpSize(
     val width: Int,
     val height: Int
 ) {
@@ -8,7 +10,7 @@ data class Size(
     val halfHeight: Double by lazy { height.toDouble() / 2.0 }
 
     override fun equals(other: Any?) : Boolean {
-        return (other is Size)
+        return (other is DpSize)
             && (other.width == width)
             && (other.height == height)
     }
@@ -17,7 +19,7 @@ data class Size(
         return width.hashCode().xor(height.hashCode())
     }
 
-    fun div(k: Int) = Size(
+    fun div(k: Int) = DpSize(
         width = width / k,
         height = width / k
     )

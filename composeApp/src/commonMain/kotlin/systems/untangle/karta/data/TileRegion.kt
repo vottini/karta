@@ -9,7 +9,7 @@ data class TileRegion(
     val bottomRight: IntOffset
 )
 
-fun defineTileRegion(base: IntOffset, dimensions: Size) : TileRegion {
+fun defineTileRegion(base: IntOffset, dimensions: PxSize) : TileRegion {
     return TileRegion(
         IntOffset(base.x - dimensions.width, base.y - dimensions.height),
         IntOffset(base.x + dimensions.width, base.y + dimensions.height)

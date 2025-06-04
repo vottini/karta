@@ -3,10 +3,9 @@ package systems.untangle.karta.conversion
 import kotlin.math.PI
 import kotlin.math.abs
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import systems.untangle.karta.data.Coordinates
-import systems.untangle.karta.data.Region
-import systems.untangle.karta.data.Size
+import systems.untangle.karta.data.BoundingBox
+import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.TileRegion
 import systems.untangle.karta.data.intersects
 
@@ -14,22 +13,22 @@ const val earthRadiusMeters = 6378137.0
 const val radiansToDegrees = 180.0 / PI
 
 class Converter(
-    private val viewingRegion: Region,
-    private val viewSize: Size,
+    private val viewingBoundingBox: BoundingBox,
+    private val viewPxSize: PxSize,
     private val pixelDensity: Float
 ) {
-    private val horizontalPxDelta = (viewSize.width / pixelDensity) / viewingRegion.deltaLongitude
-    private val verticalPxDelta = (viewSize.height / pixelDensity) / viewingRegion.deltaLatitude
+    private val horizontalPxDelta = (viewPxSize.width / pixelDensity) / viewingBoundingBox.deltaLongitude
+    private val verticalPxDelta = (viewPxSize.height / pixelDensity) / viewingBoundingBox.deltaLatitude
 
     val tileRegion by lazy {
         TileRegion(
-            convertToOffset(viewingRegion.topLeft),
-            convertToOffset(viewingRegion.bottomRight)
+            convertToOffset(viewingBoundingBox.topLeft),
+            convertToOffset(viewingBoundingBox.bottomRight)
         )
     }
 
     fun convertToOffset(coordinates: Coordinates) : IntOffset {
-        val origin = viewingRegion.topLeft
+        val origin = viewingBoundingBox.topLeft
         val diff = coordinates.minus(origin)
 
         return IntOffset(
@@ -38,7 +37,7 @@ class Converter(
         )
     }
 
-    fun insideView(coords: Coordinates, extension: Size?) : Boolean {
+    fun insideView(coords: Coordinates, extension: PxSize?) : Boolean {
         if (null != extension) {
             val apothems = extension.div(2)
             val offset = convertToOffset(coords)
@@ -51,7 +50,7 @@ class Converter(
             )
         }
 
-        val (topLeft, bottomRight) = viewingRegion
+        val (topLeft, bottomRight) = viewingBoundingBox
 
         return (
             (coords.latitude in bottomRight.latitude..topLeft.latitude) &&

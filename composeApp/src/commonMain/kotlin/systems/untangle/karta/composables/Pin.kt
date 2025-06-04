@@ -13,12 +13,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
+import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 import systems.untangle.karta.LocalPointerEvents
 import systems.untangle.karta.data.Coordinates
-import systems.untangle.karta.data.Size
+import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.defineTileRegion
 import systems.untangle.karta.input.ButtonEvent
 import systems.untangle.karta.input.PointerPosition
@@ -29,13 +30,14 @@ import karta.composeapp.generated.resources.Res
 import karta.composeapp.generated.resources.redPin
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
+import systems.untangle.karta.conversion.toPixels
 
 fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 
 @Composable
 fun Pin(
     coords: Coordinates,
-    dimensions: Size,
+    dimensions: PxSize,
     sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
@@ -43,38 +45,40 @@ fun Pin(
     onLongPress: suspend CoroutineScope.(PointerPosition) -> Unit = {}
 ) {
     val pinPainter = painterResource(sprite)
-    val pinSize = remember(pinPainter, dimensions) {
+    val density = LocalDensity.current.density
+
+    val pinPxSize = remember(pinPainter, dimensions) {
         val (width, height) = pinPainter.intrinsicSize
 
         if (width > height) {
             val aspectRatio = height / width
             val proportionalWidth = (dimensions.width * aspectRatio).toInt()
-            Size(proportionalWidth, dimensions.height)
+            PxSize(proportionalWidth, dimensions.height)
         }
 
         else {
             val aspectRatio = width / height
             val proportionalHeight = (dimensions.height * aspectRatio).toInt()
-            Size(dimensions.width, proportionalHeight)
+            PxSize(dimensions.width, proportionalHeight)
         }
     }
 
     Geolocated(
         coordinates = coords,
-        extension = Size(
-            pinSize.width,
-            pinSize.height * 2
+        extension = PxSize(
+            pinPxSize.width,
+            pinPxSize.height * 2
         )
     ) { coordsOffset ->
         val pointerEvents = LocalPointerEvents.current
-        val compensedOffset = remember(coordsOffset, pinSize) { IntOffset(
-            coordsOffset.x - (pinSize.width / 2),
-            coordsOffset.y - pinSize.height
+        val pinOffset = remember(coordsOffset, pinPxSize) { IntOffset(
+            coordsOffset.x - (pinPxSize.width.dp.toPixels(density) / 2),
+            coordsOffset.y - pinPxSize.height.dp.toPixels(density)
         )}
 
         var isHovered by remember { mutableStateOf(false) }
-        val ownExtension = remember(coordsOffset, pinSize) {
-            val halfSize = pinSize.div(2)
+        val ownExtension = remember(coordsOffset, pinPxSize) {
+            val halfSize = pinPxSize.div(2)
 
             defineTileRegion(
                 coordsOffset.minus(0, halfSize.height),
@@ -106,9 +110,9 @@ fun Pin(
 
         Image(
             modifier = Modifier
-                .offset { compensedOffset }
-                .width(pinSize.width.dp)
-                .height(pinSize.height.dp),
+                .offset { pinOffset }
+                .width(pinPxSize.width.dp)
+                .height(pinPxSize.height.dp),
 
             painter = pinPainter,
             contentDescription = null
@@ -120,13 +124,13 @@ fun Pin(
 fun Pin(
     coords: Coordinates,
     itemSelectionState: ItemSelectionState,
-    dimensions: Size,
+    dimensions: PxSize,
     sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
     onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
     onLongPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
- ) {
+) {
     val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit =
         remember(itemSelectionState, onHover) {
             { hoveredNow ->

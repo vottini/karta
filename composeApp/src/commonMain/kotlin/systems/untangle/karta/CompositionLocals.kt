@@ -4,15 +4,15 @@ import androidx.compose.runtime.compositionLocalOf
 import kotlinx.coroutines.flow.MutableSharedFlow
 import systems.untangle.karta.conversion.Converter
 import systems.untangle.karta.data.Coordinates
-import systems.untangle.karta.data.Region
-import systems.untangle.karta.data.Size
+import systems.untangle.karta.data.BoundingBox
+import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.input.PointerFlows
 
 val LocalCursor = compositionLocalOf { Coordinates(0.0, 0.0) }
 val LocalZoom = compositionLocalOf { 14 }
 
-val LocalViewingRegion = compositionLocalOf {
-    Region(
+val LocalViewingBoundingBox = compositionLocalOf {
+    BoundingBox(
         Coordinates(0.0, 0.0),
         Coordinates(0.0, 0.0)
     )
@@ -20,11 +20,11 @@ val LocalViewingRegion = compositionLocalOf {
 
 val LocalConverter = compositionLocalOf {
     Converter(
-        Region(
+        BoundingBox(
             Coordinates(1.0, 0.0),
             Coordinates(0.0, 1.0)
         ),
-        Size(0, 0),
+        PxSize(0, 0),
         1f
     )
 }

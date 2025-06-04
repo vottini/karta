@@ -1,6 +1,6 @@
 package systems.untangle.karta.data
 
-data class Region(
+data class BoundingBox(
     val topLeft: Coordinates,
     val bottomRight: Coordinates
 ) {

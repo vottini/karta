@@ -11,9 +11,7 @@ import systems.untangle.karta.LocalConverter
 import systems.untangle.karta.LocalPointerEvents
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.DistanceUnit
-import systems.untangle.karta.data.Size
-import androidx.compose.ui.unit.dp
-import systems.untangle.karta.conversion.dpToPx
+import systems.untangle.karta.data.PxSize
 
 @Composable
 fun Circle(
@@ -34,20 +32,18 @@ fun Circle(
         }
     }
 
-    val correctedRadius = radiusInPixels.dp.dpToPx()
-
     Geolocated(
         coordinates = coords,
-        extension = Size(
-            (2f * correctedRadius).toInt(),
-            (2f * correctedRadius).toInt()
+        extension = PxSize(
+            (2f * radiusInPixels).toInt(),
+            (2f * radiusInPixels).toInt()
         )
     ) { coordsOffset ->
         Canvas(modifier = Modifier.offset { coordsOffset }) {
             if (null != fillColor) {
                 drawCircle(
                     color = fillColor,
-                    radius = correctedRadius.toFloat()
+                    radius = radiusInPixels
                 )
             }
 
@@ -55,7 +51,7 @@ fun Circle(
                 drawCircle(
                     color = borderColor,
                     style = Stroke(borderWidth),
-                    radius = correctedRadius.toFloat()
+                    radius = radiusInPixels
                 )
             }
         }

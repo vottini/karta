@@ -40,7 +40,7 @@ fun Tile(
     xIndex: Int,
     yIndex: Int,
     center: DoubleOffset,
-    viewSize: systems.untangle.karta.data.Size,
+    viewPxSize: systems.untangle.karta.data.PxSize,
     tileServer: TileServer
 ) {
     val formattedUrl = remember(tileServer, zoom, xIndex, yIndex) {
@@ -51,8 +51,8 @@ fun Tile(
     }
 
     val pixelDensity = LocalDensity.current.density
-    val xOffset = ((viewSize.halfWidth / pixelDensity) + (xIndex - center.x) * kartaTileSize).dp
-    val yOffset = ((viewSize.halfHeight / pixelDensity) + (yIndex - center.y) * kartaTileSize).dp
+    val xOffset = ((viewPxSize.halfWidth / pixelDensity) + (xIndex - center.x) * kartaTileSize).dp
+    val yOffset = ((viewPxSize.halfHeight / pixelDensity) + (yIndex - center.y) * kartaTileSize).dp
 
     val headers = NetworkHeaders.Builder()
     tileServer.requestHeaders.forEach { header ->

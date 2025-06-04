@@ -47,7 +47,7 @@ fun Polyline(
                 start.y
             )
 
-            for (i in 1 .. offsets.size-1) {
+            for (i in 1..<offsets.size) {
                 val next = offsets[i]
                 newPath.lineTo(
                     next.x,
