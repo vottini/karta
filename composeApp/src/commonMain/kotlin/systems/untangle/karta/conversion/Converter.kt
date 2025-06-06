@@ -17,8 +17,8 @@ class Converter(
     private val viewPxSize: PxSize,
     private val pixelDensity: Float
 ) {
-    private val horizontalPxDelta = (viewPxSize.width / pixelDensity) / viewingBoundingBox.deltaLongitude
-    private val verticalPxDelta = (viewPxSize.height / pixelDensity) / viewingBoundingBox.deltaLatitude
+    private val horizontalPxDelta = (viewPxSize.width.value / pixelDensity) / viewingBoundingBox.deltaLongitude
+    private val verticalPxDelta = (viewPxSize.height.value / pixelDensity) / viewingBoundingBox.deltaLatitude
 
     val tileRegion by lazy {
         TileRegion(
@@ -44,8 +44,8 @@ class Converter(
 
             return tileRegion.intersects(
                 TileRegion(
-                    IntOffset(offset.x - apothems.width, offset.y - apothems.height),
-                    IntOffset(offset.x + apothems.width, offset.y + apothems.height)
+                    IntOffset(offset.x - apothems.width.value.toInt(), offset.y - apothems.height.value.toInt()),
+                    IntOffset(offset.x + apothems.width.value.toInt(), offset.y + apothems.height.value.toInt())
                 )
             )
         }

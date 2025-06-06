@@ -1,13 +1,13 @@
 package systems.untangle.karta.data
 
-import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 
 data class DpSize(
-    val width: Int,
-    val height: Int
+    val width: Dp,
+    val height: Dp
 ) {
-    val halfWidth: Double by lazy { width.toDouble() / 2.0 }
-    val halfHeight: Double by lazy { height.toDouble() / 2.0 }
+    val halfWidth: Dp by lazy { width / 2f }
+    val halfHeight: Dp by lazy { height / 2f }
 
     override fun equals(other: Any?) : Boolean {
         return (other is DpSize)

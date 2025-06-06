@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
-import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalDensity
 import kotlinx.coroutines.CoroutineScope
@@ -30,7 +29,9 @@ import karta.composeapp.generated.resources.Res
 import karta.composeapp.generated.resources.redPin
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
-import systems.untangle.karta.conversion.toPixels
+import systems.untangle.karta.conversion.toDp
+import systems.untangle.karta.data.div
+import systems.untangle.karta.data.times
 
 fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 
@@ -52,13 +53,13 @@ fun Pin(
 
         if (width > height) {
             val aspectRatio = height / width
-            val proportionalWidth = (dimensions.width * aspectRatio).toInt()
+            val proportionalWidth = (dimensions.width * aspectRatio)
             PxSize(proportionalWidth, dimensions.height)
         }
 
         else {
             val aspectRatio = width / height
-            val proportionalHeight = (dimensions.height * aspectRatio).toInt()
+            val proportionalHeight = (dimensions.height * aspectRatio)
             PxSize(dimensions.width, proportionalHeight)
         }
     }
@@ -72,8 +73,8 @@ fun Pin(
     ) { coordsOffset ->
         val pointerEvents = LocalPointerEvents.current
         val pinOffset = remember(coordsOffset, pinPxSize) { IntOffset(
-            coordsOffset.x - (pinPxSize.width.dp.toPixels(density) / 2),
-            coordsOffset.y - pinPxSize.height.dp.toPixels(density)
+            coordsOffset.x - (pinPxSize.width / 2).value.toInt(),
+            coordsOffset.y - pinPxSize.height.value.toInt()
         )}
 
         var isHovered by remember { mutableStateOf(false) }
@@ -81,7 +82,7 @@ fun Pin(
             val halfSize = pinPxSize.div(2)
 
             defineTileRegion(
-                coordsOffset.minus(0, halfSize.height),
+                coordsOffset.minus(0, halfSize.height.value.toInt()),
                 halfSize)
         }
 
@@ -111,8 +112,8 @@ fun Pin(
         Image(
             modifier = Modifier
                 .offset { pinOffset }
-                .width(pinPxSize.width.dp)
-                .height(pinPxSize.height.dp),
+                .width(pinPxSize.width.toDp(density))
+                .height(pinPxSize.height.toDp(density)),
 
             painter = pinPainter,
             contentDescription = null

@@ -12,6 +12,7 @@ import systems.untangle.karta.LocalPointerEvents
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.DistanceUnit
 import systems.untangle.karta.data.PxSize
+import systems.untangle.karta.data.px
 
 @Composable
 fun Circle(
@@ -35,8 +36,8 @@ fun Circle(
     Geolocated(
         coordinates = coords,
         extension = PxSize(
-            (2f * radiusInPixels).toInt(),
-            (2f * radiusInPixels).toInt()
+            (2f * radiusInPixels).toInt().px,
+            (2f * radiusInPixels).toInt().px
         )
     ) { coordsOffset ->
         Canvas(modifier = Modifier.offset { coordsOffset }) {

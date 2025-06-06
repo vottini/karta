@@ -11,8 +11,8 @@ data class TileRegion(
 
 fun defineTileRegion(base: IntOffset, dimensions: PxSize) : TileRegion {
     return TileRegion(
-        IntOffset(base.x - dimensions.width, base.y - dimensions.height),
-        IntOffset(base.x + dimensions.width, base.y + dimensions.height)
+        IntOffset(base.x - dimensions.width.value.toInt(), base.y - dimensions.height.value.toInt()),
+        IntOffset(base.x + dimensions.width.value.toInt(), base.y + dimensions.height.value.toInt())
     )
 }
 

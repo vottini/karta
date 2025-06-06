@@ -6,9 +6,12 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.dp
 
 import systems.untangle.karta.data.Coordinates
+import systems.untangle.karta.data.DpSize
 import systems.untangle.karta.data.PxSize
+import systems.untangle.karta.data.px
 import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.network.TileServer
 
@@ -23,7 +26,7 @@ fun Karta(
     onMapDragged: suspend () -> Unit = {},
     content: @Composable () -> Unit = {})
 {
-    var nullableViewPxSize: PxSize? by remember { mutableStateOf(null) }
+    var nullableViewSize: PxSize? by remember { mutableStateOf(null) }
 
     Box(
         Modifier
@@ -31,13 +34,13 @@ fun Karta(
             .fillMaxHeight()
 
             .onSizeChanged { size ->
-                val newViewPxSize = PxSize(size.width, size.height)
-                if (newViewPxSize != nullableViewPxSize) {
-                    nullableViewPxSize = newViewPxSize
+                val newViewPxSize = PxSize(size.width.px, size.height.px)
+                if (newViewPxSize != nullableViewSize) {
+                    nullableViewSize = newViewPxSize
                 }
             }
     ) {
-        nullableViewPxSize?.let { viewSize ->
+        nullableViewSize?.let { viewSize ->
             KMap(
                 tileServer,
                 initialZoom,

@@ -1,3 +1,5 @@
 package systems.untangle.karta
 
-const val kartaTileSize = 256
+import systems.untangle.karta.data.px
+
+val kartaTileSize = 256.px

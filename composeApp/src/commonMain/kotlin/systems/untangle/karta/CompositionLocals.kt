@@ -6,6 +6,7 @@ import systems.untangle.karta.conversion.Converter
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.BoundingBox
 import systems.untangle.karta.data.PxSize
+import systems.untangle.karta.data.px
 import systems.untangle.karta.input.PointerFlows
 
 val LocalCursor = compositionLocalOf { Coordinates(0.0, 0.0) }
@@ -24,7 +25,7 @@ val LocalConverter = compositionLocalOf {
             Coordinates(1.0, 0.0),
             Coordinates(0.0, 1.0)
         ),
-        PxSize(0, 0),
+        PxSize(0.px, 0.px),
         1f
     )
 }

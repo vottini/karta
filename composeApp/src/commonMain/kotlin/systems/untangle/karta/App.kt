@@ -29,6 +29,7 @@ import karta.composeapp.generated.resources.redPin
 import karta.composeapp.generated.resources.bluePin
 import karta.composeapp.generated.resources.greenPin
 import org.jetbrains.compose.resources.DrawableResource
+import systems.untangle.karta.data.px
 
 val redPin = Res.drawable.redPin
 val bluePin = Res.drawable.bluePin
@@ -121,7 +122,7 @@ fun App() {
 
 	Karta(
 		initialCoords = home,
-		initialZoom = 13,
+		initialZoom = 14,
 		tileServer = selectedTileServer.server,
 		onMapDragged = { popupContext.hide() },
 		onPress = {
@@ -162,7 +163,7 @@ fun App() {
 				coords = homeCoords,
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = PxSize(60, 60),
+				dimensions = PxSize(60.px, 60.px),
 				onClick = { event ->
 					if (itemState.selected) {
 						launch {
@@ -185,7 +186,7 @@ fun App() {
 				coords = cefetCoords,
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = PxSize(60, 60)
+				dimensions = PxSize(60.px, 60.px)
 			)
 		}
 
@@ -198,7 +199,7 @@ fun App() {
 					coords = poi.coordinates,
 					itemSelectionState = itemState,
 					sprite = choosePinResource(itemState),
-					dimensions = PxSize(60, 60),
+					dimensions = PxSize(60.px, 60.px),
 					onLongPress = {
 						popupContext.show(
 							poi.coordinates,

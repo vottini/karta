@@ -32,7 +32,10 @@ import karta.composeapp.generated.resources.grid
 import org.jetbrains.compose.resources.painterResource
 
 import androidx.compose.ui.platform.LocalDensity
-import systems.untangle.karta.conversion.dpToPx
+import systems.untangle.karta.conversion.toDp
+import systems.untangle.karta.conversion.toPx
+import systems.untangle.karta.data.PxSize
+import systems.untangle.karta.data.plus
 
 @Composable
 fun Tile(
@@ -40,7 +43,7 @@ fun Tile(
     xIndex: Int,
     yIndex: Int,
     center: DoubleOffset,
-    viewPxSize: systems.untangle.karta.data.PxSize,
+    viewSize: PxSize,
     tileServer: TileServer
 ) {
     val formattedUrl = remember(tileServer, zoom, xIndex, yIndex) {
@@ -51,8 +54,9 @@ fun Tile(
     }
 
     val pixelDensity = LocalDensity.current.density
-    val xOffset = ((viewPxSize.halfWidth / pixelDensity) + (xIndex - center.x) * kartaTileSize).dp
-    val yOffset = ((viewPxSize.halfHeight / pixelDensity) + (yIndex - center.y) * kartaTileSize).dp
+    val tileSize = kartaTileSize.toDp(pixelDensity)
+    val xOffset = viewSize.halfWidth + ((xIndex - center.x) * tileSize.value).dp.toPx(pixelDensity)
+    val yOffset = viewSize.halfHeight + ((yIndex - center.y) * tileSize.value).dp.toPx(pixelDensity)
 
     val headers = NetworkHeaders.Builder()
     tileServer.requestHeaders.forEach { header ->
@@ -64,18 +68,18 @@ fun Tile(
     //getLogger().i("CORTE", "SIZES = ${kartaTileSize.dp}")
 
     val offset = IntOffset(
-        xOffset.dpToPx(),
-        yOffset.dpToPx())
+        xOffset.value.toInt(),
+        yOffset.value.toInt())
 
     Box(modifier = Modifier
         .offset { offset }
-        .requiredSize(kartaTileSize.dp)
+        .requiredSize(tileSize)
     ) {
         AsyncImage(
             contentDescription = null,
             contentScale = ContentScale.FillBounds,
             placeholder = painterResource(Res.drawable.grid),
-            modifier = Modifier.height(kartaTileSize.dp).width(kartaTileSize.dp),
+            modifier = Modifier.height(tileSize).width(tileSize),
             model = ImageRequest.Builder(LocalPlatformContext.current)
                 .data(formattedUrl)
                 .httpHeaders(headers.build())
@@ -93,7 +97,7 @@ fun Tile(
     Canvas(modifier = Modifier.offset { offset }) {
         drawRect(
             color = Color.Black,
-            size = Size(kartaTileSize.dp.toPx(), kartaTileSize.dp.toPx()),
+            size = Size(kartaTileSize.value, kartaTileSize.value),
             style = Stroke(1.0f),
         )
     }
