@@ -35,12 +35,12 @@ import systems.untangle.karta.data.px
 import systems.untangle.karta.input.AugmentedPointerEvent
 import systems.untangle.karta.input.ButtonAction
 import systems.untangle.karta.input.PointerButton
-import systems.untangle.karta.input.PointerFlows
-import systems.untangle.karta.input.PointerMonitor
 import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.exclusiveListener
+import systems.untangle.karta.input.getPlatformSpecificPointerMonitor
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
+import kotlin.time.Duration.Companion.milliseconds
 
 /*
  *
@@ -155,17 +155,7 @@ fun KMap(
     val rawMoveFlow = remember { MutableSharedFlow<PointerPosition>(extraBufferCapacity = 1) }
     val rawButtonFlow = remember { MutableSharedFlow<AugmentedPointerEvent>(extraBufferCapacity = 1) }
     val pointerMonitor = remember(rawButtonFlow, rawMoveFlow) {
-        PointerMonitor(rawButtonFlow, rawMoveFlow)
-    }
-
-    val pointerEvents = remember(pointerMonitor) {
-        PointerFlows(
-            pointerMonitor.moveFlow,
-            pointerMonitor.clickFlow,
-            pointerMonitor.shortPressFlow,
-            pointerMonitor.longPressFlow,
-            pointerMonitor.dragFlow
-        )
+        getPlatformSpecificPointerMonitor(rawButtonFlow, rawMoveFlow, 500.milliseconds)
     }
 
     var leftPressed by remember { mutableStateOf(false) }
@@ -180,6 +170,10 @@ fun KMap(
         exclusiveListener(pointerMonitor.dragSubscribersFlow) { draggingAvailable = it }
         exclusiveListener(pointerMonitor.pressSubscribersFlow) { pressAvailable = it }
         pointerMonitor.listen(this)
+    }
+
+    val pointerEvents = remember(pointerMonitor) {
+        pointerMonitor.pointerFlows
     }
 
     LaunchedEffect(pointerEvents, pressAvailable) {

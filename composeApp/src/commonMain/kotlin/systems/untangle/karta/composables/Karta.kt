@@ -6,10 +6,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.unit.dp
 
 import systems.untangle.karta.data.Coordinates
-import systems.untangle.karta.data.DpSize
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.px
 import systems.untangle.karta.input.PointerPosition

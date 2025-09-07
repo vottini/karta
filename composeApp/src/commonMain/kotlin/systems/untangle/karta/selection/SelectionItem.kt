@@ -16,22 +16,20 @@ data class ItemSelectionState(
 ) {
     val hovered = currentState.currentHover == itemId
     val selected = currentState.currentSelection == itemId
+    val grabbed = selected && currentState.grabbing
+
+    suspend fun setHovered() = emitter(currentState.copy(currentHover = itemId))
+    suspend fun setSelected() = emitter(currentState.copy(currentSelection = itemId))
+    suspend fun setClicked() = emitter(currentState.copy(
+        currentSelection = itemId,
+        grabbing = true))
+
+    suspend fun clearHovered() = emitter(currentState.copy(currentHover = emptySelection))
+    suspend fun clearSelected() = emitter(currentState.copy(currentSelection = emptySelection))
+    suspend fun clearGrabbing() = emitter(currentState.copy(grabbing = false))
 
     val noneHovered = currentState.currentHover == emptySelection
     val noneSelected = currentState.currentSelection == emptySelection
-
-    suspend fun setHovered() {
-        val selfHovered = currentState.copy(currentHover = itemId)
-        emitter(selfHovered)
-    }
-
-    suspend fun clearHovered() {
-        val noHover = currentState.copy(currentHover = emptySelection)
-        emitter(noHover)
-    }
-
-    suspend fun setSelected() = emitter(currentState.copy(currentSelection = itemId))
-    suspend fun clearSelected() = emitter(currentState.copy(currentSelection = emptySelection))
 
     override fun toString() : String {
         return "hovered=$hovered selected=$selected itemId=$itemId"

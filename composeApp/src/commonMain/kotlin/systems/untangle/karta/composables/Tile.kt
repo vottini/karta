@@ -44,7 +44,8 @@ fun Tile(
     yIndex: Int,
     center: DoubleOffset,
     viewSize: PxSize,
-    tileServer: TileServer
+    tileServer: TileServer,
+    displayBoundaries: Boolean = false
 ) {
     val formattedUrl = remember(tileServer, zoom, xIndex, yIndex) {
         tileServer.tileUrl
@@ -62,10 +63,6 @@ fun Tile(
     tileServer.requestHeaders.forEach { header ->
         headers[header.key] = header.value
     }
-
-    //getLogger().d("CORTE", "X,Y = ${center.x.toInt()}, ${center.y.toInt()}")
-    //getLogger().i("CORTE", "XOFF,YOFF = $xOffset, $yOffset")
-    //getLogger().i("CORTE", "SIZES = ${kartaTileSize.dp}")
 
     val offset = IntOffset(
         xOffset.value.toInt(),
@@ -87,19 +84,18 @@ fun Tile(
         )
     }
 
-    Box(
-        modifier = Modifier
-            .offset { offset }
-    ) {
-        Text(text = "$xIndex,$yIndex")
-    }
+    if (displayBoundaries) {
+        Box(modifier = Modifier.offset { offset }) {
+            Text(text = "$xIndex,$yIndex")
+        }
 
-    Canvas(modifier = Modifier.offset { offset }) {
-        drawRect(
-            color = Color.Black,
-            size = Size(kartaTileSize.value, kartaTileSize.value),
-            style = Stroke(1.0f),
-        )
+        Canvas(modifier = Modifier.offset { offset }) {
+            drawRect(
+                color = Color.Black,
+                size = Size(kartaTileSize.value, kartaTileSize.value),
+                style = Stroke(1.0f),
+            )
+        }
     }
 
 }

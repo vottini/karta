@@ -32,6 +32,7 @@ import org.jetbrains.compose.resources.painterResource
 import systems.untangle.karta.conversion.toDp
 import systems.untangle.karta.data.div
 import systems.untangle.karta.data.times
+import systems.untangle.karta.input.ButtonAction
 
 fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 
@@ -131,13 +132,26 @@ fun Pin(
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
     onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
     onLongPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onSelectionChange: suspend CoroutineScope.() -> Unit = {}
 ) {
+    LaunchedEffect(itemSelectionState) {
+        onSelectionChange()
+    }
+
     val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit =
         remember(itemSelectionState, onHover) {
             { hoveredNow ->
                 if (hoveredNow && itemSelectionState.noneHovered) itemSelectionState.setHovered()
                 if (itemSelectionState.hovered && !hoveredNow) itemSelectionState.clearHovered()
                 onHover(hoveredNow)
+            }
+        }
+
+    val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
+        remember (itemSelectionState, onClick) {
+            { buttonEvent ->
+                itemSelectionState.setClicked()
+                onClick(buttonEvent)
             }
         }
 
@@ -162,8 +176,68 @@ fun Pin(
         dimensions,
         sprite,
         decoratedOnHover,
-        onClick,
+        decoratedOnClick,
         decoratedOnShortPress,
         decoratedOnLongPress
+    )
+}
+
+@Composable
+fun MovablePin(
+    coords: Coordinates,
+    coordsSetter: (Coordinates) -> Unit,
+    itemSelectionState: ItemSelectionState,
+    dimensions: PxSize,
+    sprite: DrawableResource = Res.drawable.redPin,
+    onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
+    onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
+    onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onLongPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onSelectionChange: suspend CoroutineScope.() -> Unit = {}
+) {
+    val pointerEvents = LocalPointerEvents.current
+    val offset = remember { mutableStateOf(Coordinates(0.0, 0.0)) }
+
+    val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
+        remember (itemSelectionState, onClick) {
+            { event ->
+                if (event.action == ButtonAction.PRESS) {
+                    offset.value = event.position.coordinates.minus(coords)
+                }
+
+                else itemSelectionState.clearGrabbing()
+                onClick(event)
+            }
+        }
+
+    val decoratedSelectionChange: suspend CoroutineScope.() -> Unit =
+        remember (itemSelectionState, onSelectionChange, offset) {
+            {
+                if (itemSelectionState.grabbed) {
+                    launch {
+                        pointerEvents.dragFlow.collect { deltaPosition ->
+                            coordsSetter(
+                                deltaPosition.current.coordinates
+                                    .plus(offset.value)
+                            )
+                        }
+                    }
+
+                }
+
+                onSelectionChange()
+            }
+        }
+
+    Pin(
+        coords,
+        itemSelectionState,
+        dimensions,
+        sprite,
+        onHover,
+        decoratedOnClick,
+        onShortPress,
+        onLongPress,
+        decoratedSelectionChange
     )
 }

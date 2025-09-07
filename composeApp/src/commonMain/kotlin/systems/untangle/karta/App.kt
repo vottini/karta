@@ -6,7 +6,6 @@ import androidx.compose.material.Button
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.Color
-import kotlinx.coroutines.launch
 
 import systems.untangle.karta.composables.Circle
 import systems.untangle.karta.composables.Karta
@@ -29,6 +28,7 @@ import karta.composeapp.generated.resources.redPin
 import karta.composeapp.generated.resources.bluePin
 import karta.composeapp.generated.resources.greenPin
 import org.jetbrains.compose.resources.DrawableResource
+import systems.untangle.karta.composables.MovablePin
 import systems.untangle.karta.data.px
 
 val redPin = Res.drawable.redPin
@@ -62,7 +62,7 @@ val aeroporto = listOf(
 	Coordinates(-20.242743, -40.280783)
 )
 
-val smapsServer = TileServer("http://localhost:8077/{zoom}/{x}/{y}")
+val smapsServer = TileServer("http://localhost:9070/tile/{zoom}/{x}/{y}")
 val googleSatelliteServer = TileServer("https://mt0.google.com/vt/lyrs=s&x={x}&y={y}&z={zoom}")
 
 val openStreetMapServer = TileServer(
@@ -79,8 +79,8 @@ data class TileServerOption(
 	val server: TileServer)
 
 val tileServerOptions = listOf(
-	TileServerOption("OpenStreetMaps", openStreetMapServer),
-	TileServerOption("Google Satellite", googleSatelliteServer),
+	//TileServerOption("OpenStreetMaps", openStreetMapServer),
+	//TileServerOption("Google Satellite", googleSatelliteServer),
 	TileServerOption("SMAPS", smapsServer)
 )
 
@@ -119,16 +119,20 @@ fun App() {
 		)
 	}
 
-
 	Karta(
 		initialCoords = home,
 		initialZoom = 14,
 		tileServer = selectedTileServer.server,
-		onMapDragged = { popupContext.hide() },
+
+		onMapDragged = {
+			popupContext.hide()
+		},
+
 		onPress = {
 			selectionContext.clearSelection()
 			popupContext.hide()
 		},
+
 		onLongPress = { pointerPosition ->
 			val coordinates = pointerPosition.coordinates
 			popupContext.show(
@@ -138,7 +142,6 @@ fun App() {
 	) {
 		val cursor = LocalCursor.current
 		val viewingRegion = LocalViewingBoundingBox.current
-		val pointerEvents = LocalPointerEvents.current
 		val converter = LocalConverter.current
 		val zoom = LocalZoom.current
 
@@ -159,22 +162,12 @@ fun App() {
 				)
 			}
 
-			Pin(
+			MovablePin(
 				coords = homeCoords,
+				coordsSetter = { coords -> homeCoords = coords},
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = PxSize(60.px, 60.px),
-				onClick = { event ->
-					if (itemState.selected) {
-						launch {
-							val offset = event.position.coordinates.minus(homeCoords)
-							pointerEvents.dragFlow.collect { deltaPosition ->
-								homeCoords = deltaPosition.current.coordinates
-									.plus(offset)
-							}
-						}
-					}
-				}
+				dimensions = PxSize(60.px, 60.px)
 			)
 		}
 

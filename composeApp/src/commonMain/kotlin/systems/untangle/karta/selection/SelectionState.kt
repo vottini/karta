@@ -2,5 +2,6 @@ package systems.untangle.karta.selection
 
 data class SelectionState(
     val currentHover: String = "",
-    val currentSelection: String = ""
+    val currentSelection: String = "",
+    val grabbing: Boolean = false
 )
