@@ -1,11 +1,19 @@
 package systems.untangle.karta
 
+import androidx.compose.foundation.layout.Arrangement
 import systems.untangle.karta.selection.SelectionItem
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 
 import systems.untangle.karta.composables.Circle
 import systems.untangle.karta.composables.Karta
@@ -29,6 +37,7 @@ import karta.composeapp.generated.resources.bluePin
 import karta.composeapp.generated.resources.greenPin
 import org.jetbrains.compose.resources.DrawableResource
 import systems.untangle.karta.composables.MovablePin
+import systems.untangle.karta.composables.MovablePolyline
 import systems.untangle.karta.data.px
 
 val redPin = Res.drawable.redPin
@@ -76,26 +85,27 @@ val openStreetMapServer = TileServer(
 
 data class TileServerOption(
 	val name: String,
-	val server: TileServer)
-
-val tileServerOptions = listOf(
-	//TileServerOption("OpenStreetMaps", openStreetMapServer),
-	//TileServerOption("Google Satellite", googleSatelliteServer),
-	TileServerOption("SMAPS", smapsServer)
+	val server: TileServer
 )
+
+val darkBlue = Color(0xFF00008B)
+val darkGreen = Color(0xFF008B00)
+
+val streets = TileServerOption("Streets", openStreetMapServer)
+val satellite = TileServerOption("Google Satellite", googleSatelliteServer)
+val bathymetry = TileServerOption("Bathy", smapsServer)
 
 data class PointOfInterest(
 	val name: String,
-	val coordinates: Coordinates
+	var coordinates: Coordinates
 )
 
 
 @Composable
 fun App() {
-	var tileServerIndex by remember { mutableStateOf(0) }
-	val selectedTileServer = tileServerOptions[tileServerIndex]
-
+	val tileServer = remember { mutableStateOf(bathymetry) }
 	val createdPins = remember { mutableStateListOf<PointOfInterest>() }
+	val movableCreatedPins = remember { mutableStateListOf<PointOfInterest>() }
 	val createdCircles = remember { mutableStateListOf<PointOfInterest>() }
 
 	val selectionContext = rememberSelectionContext()
@@ -104,7 +114,7 @@ fun App() {
 	val options = remember(createdPins) {
 		listOf(
 			PopupItem("Create new Pin") { coords ->
-				val pinName = "PIN${createdPins.size}"
+				val pinName = "PIN${createdPins.size + movableCreatedPins.size}"
 				val poi = PointOfInterest(pinName, coords)
 				createdPins.add(poi)
 			},
@@ -122,7 +132,7 @@ fun App() {
 	Karta(
 		initialCoords = home,
 		initialZoom = 14,
-		tileServer = selectedTileServer.server,
+		tileServer = tileServer.value.server,
 
 		onMapDragged = {
 			popupContext.hide()
@@ -147,6 +157,9 @@ fun App() {
 
 		var homeCoords by remember { mutableStateOf(home) }
 		val cefetCoords by remember { mutableStateOf(cefet) }
+		val aeroportCoords = remember { mutableStateListOf <Coordinates> ().apply {
+			addAll(aeroporto)
+		} }
 
 		SelectionItem(
 			selectionContext = selectionContext,
@@ -200,6 +213,41 @@ fun App() {
 								PopupItem("Remove Pin") {
 									createdPins.remove(poi)
 								},
+
+								PopupItem("Unlock Pin") {
+									movableCreatedPins.add(poi)
+									createdPins.remove(poi)
+								}
+							))
+					}
+				)
+			}
+		}
+
+		movableCreatedPins.forEach { poi ->
+			SelectionItem(
+				selectionContext = selectionContext,
+				itemId = poi.name
+			) { itemState ->
+				MovablePin(
+					coords = poi.coordinates,
+					coordsSetter = { coords -> poi.coordinates = coords },
+					itemSelectionState = itemState,
+					sprite = choosePinResource(itemState),
+					dimensions = PxSize(60.px, 60.px),
+
+					onLongPress = {
+						popupContext.show(
+							poi.coordinates,
+							listOf (
+								PopupItem("Remove Pin") {
+									movableCreatedPins.remove(poi)
+								},
+
+								PopupItem("Lock Pin") {
+									createdPins.add(poi)
+									movableCreatedPins.remove(poi)
+								}
 							))
 					}
 				)
@@ -233,11 +281,13 @@ fun App() {
 			strokeWidth = 5.0f
 		)
 
-		Polyline(
-			coordsList = aeroporto,
-			strokeColor = Color.Green,
+		MovablePolyline(
+			coordsList = aeroportCoords.toList(),
+			coordsSetter = { index, value -> aeroportCoords[index] = value },
+			strokeColor = Color.Black,
 			fillColor = Color.Green,
-			fillAlpha = 0.6f
+			fillAlpha = 0.6f,
+			closed = true
 		)
 
 		if (popupContext.hasContents) {
@@ -252,13 +302,45 @@ fun App() {
 			Text("${converter.convertToOffset(cursor)}")
 			Text("Zoom = $zoom")
 
+		}
+
+		Column (
+			modifier = Modifier.fillMaxSize().padding(end = 5.dp),
+			verticalArrangement = Arrangement.Bottom,
+			horizontalAlignment = Alignment.End,
+		) {
 			Button(
-				onClick = {
-					val nextIndex = (tileServerIndex + 1) % tileServerOptions.size
-					tileServerIndex = nextIndex
-				}
+				modifier = Modifier.width(100.dp),
+				onClick = { tileServer.value = bathymetry },
+				colors = ButtonDefaults.buttonColors(
+					backgroundColor = if (tileServer.value == bathymetry) darkGreen else darkBlue,
+					contentColor = Color.White
+
+				)
 			) {
-				Text("Mudar Mapa")
+				Text("Bathy")
+			}
+
+			Button(
+				modifier = Modifier.width(100.dp),
+				onClick = { tileServer.value = streets },
+				colors = ButtonDefaults.buttonColors(
+					backgroundColor = if (tileServer.value == streets) darkGreen else darkBlue,
+					contentColor = Color.White
+				)
+			) {
+				Text("Streets")
+			}
+
+			Button(
+				modifier = Modifier.width(100.dp),
+				onClick = { tileServer.value = satellite },
+				colors = ButtonDefaults.buttonColors(
+					backgroundColor = if (tileServer.value == satellite) darkGreen else darkBlue,
+					contentColor = Color.White
+				)
+			) {
+				Text("Satellite")
 			}
 		}
 

@@ -13,10 +13,19 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Fill
+
 import systems.untangle.karta.LocalConverter
 import systems.untangle.karta.data.Coordinates
+import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.TileRegion
 import systems.untangle.karta.data.intersects
+import systems.untangle.karta.data.px
+import systems.untangle.karta.selection.SelectionItem
+import systems.untangle.karta.selection.rememberSelectionContext
+
+import karta.composeapp.generated.resources.Res
+import karta.composeapp.generated.resources.blueDot
+val blueDot = Res.drawable.blueDot
 
 fun IntOffset.toOffset()  = Offset(this.x.toFloat(), this.y.toFloat())
 
@@ -47,7 +56,7 @@ fun Polyline(
                 start.y
             )
 
-            for (i in 1..<offsets.size) {
+            for (i in 1..< offsets.size) {
                 val next = offsets[i]
                 newPath.lineTo(
                     next.x,
@@ -106,3 +115,51 @@ fun Polyline(
     }
 }
 
+@Composable
+fun MovablePolyline(
+    coordsList: List <Coordinates>,
+    coordsSetter: (Int, Coordinates) -> Any,
+    strokeColor: Color = Color.Black,
+    strokeWidth: Float = 1.0f,
+    fillColor: Color? = null,
+    fillAlpha: Float = 1f,
+    closed: Boolean = false
+) {
+    val selectionContext = rememberSelectionContext()
+
+    Polyline(
+        coordsList,
+        strokeColor,
+        strokeWidth,
+        fillColor,
+        fillAlpha,
+        closed
+    )
+
+    coordsList.forEachIndexed { index, coords ->
+
+        SelectionItem(
+            selectionContext = selectionContext,
+            itemId = "$index"
+        ) { itemState ->
+            MovablePin(
+                coords = coords,
+                coordsSetter = { coords -> coordsSetter(index, coords) },
+                itemSelectionState = itemState,
+                sprite = blueDot,
+                dimensions = PxSize(16.px, 16.px)
+            )
+        }
+    }
+}
+
+/**
+ *  Circle(
+ *    coord,
+ *    radius = 5f,
+ *    radiusUnit = DistanceUnit.PIXELS,
+ *    borderWidth = 1f,
+ *    borderColor = strokeColor,
+ *    fillColor = Color.Blue
+ *  )
+ **/
