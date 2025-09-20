@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.toIntSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -30,16 +31,44 @@ import karta.composeapp.generated.resources.redPin
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 import systems.untangle.karta.conversion.toDp
+import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.div
+import systems.untangle.karta.data.px
 import systems.untangle.karta.data.times
 import systems.untangle.karta.input.ButtonAction
 
 fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 
+/*
+ *    window origin
+ *        (0,0)
+ *          *
+ *          |
+ *          |      coordsOffset
+ *   /      '----------*------,------,
+ *   |                 |      |      |
+ *   |  pinPxSize's    |      |      |
+ *   |  height         |------o------|  centerOffset
+ *   |                 |      |      |  [defaults to (0.5,0,5)]
+ *   |                 |      |      |
+ *   /                 '------'------'
+ *
+ *                     /-------------/
+ *                       pinPxSize's
+ *                         width
+ *
+ */
+
+
+/**
+ *
+ */
+
 @Composable
 fun Pin(
     coords: Coordinates,
-    dimensions: PxSize,
+    dimensions: PxSize? = null,
+    keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
@@ -50,41 +79,55 @@ fun Pin(
     val density = LocalDensity.current.density
 
     val pinPxSize = remember(pinPainter, dimensions) {
-        val (width, height) = pinPainter.intrinsicSize
+        if (dimensions != null && !keepRatio) {
+            return@remember dimensions
+        }
 
-        if (width > height) {
-            val aspectRatio = height / width
-            val proportionalWidth = (dimensions.width * aspectRatio)
-            PxSize(proportionalWidth, dimensions.height)
+        val (width, height) = pinPainter.intrinsicSize
+        if (null == dimensions) {
+            return@remember PxSize(
+                width.px,
+                height.px)
+        }
+
+        val widthDeformation = width / dimensions.width.value
+        val heightDeformation = height / dimensions.height.value
+
+        if (widthDeformation > heightDeformation) {
+            val proportionalHeight = height / widthDeformation
+            PxSize(dimensions.width, proportionalHeight.px)
         }
 
         else {
-            val aspectRatio = width / height
-            val proportionalHeight = (dimensions.height * aspectRatio)
-            PxSize(dimensions.width, proportionalHeight)
+            val proportionalWidth = width / heightDeformation
+            PxSize(proportionalWidth.px, dimensions.height)
         }
     }
 
+    val centerOffset = DoubleOffset(0.5, 1.0)
+
     Geolocated(
         coordinates = coords,
-        extension = PxSize(
-            pinPxSize.width,
-            pinPxSize.height * 2
-        )
+        extension = pinPxSize
     ) { coordsOffset ->
         val pointerEvents = LocalPointerEvents.current
         val pinOffset = remember(coordsOffset, pinPxSize) { IntOffset(
-            coordsOffset.x - (pinPxSize.width / 2).value.toInt(),
-            coordsOffset.y - pinPxSize.height.value.toInt()
+            coordsOffset.x - (centerOffset.x * pinPxSize.width.value).toInt(),
+            coordsOffset.y - (centerOffset.y * pinPxSize.height.value).toInt()
         )}
 
         var isHovered by remember { mutableStateOf(false) }
-        val ownExtension = remember(coordsOffset, pinPxSize) {
-            val halfSize = pinPxSize.div(2)
-
+        val ownExtension = remember(pinOffset, pinPxSize) {
             defineTileRegion(
-                coordsOffset.minus(0, halfSize.height.value.toInt()),
-                halfSize)
+                pinOffset + IntOffset(
+                    ((1.0 - centerOffset.x) * pinPxSize.width.value).toInt(),
+                    ((1.0 - centerOffset.y) * pinPxSize.height.value).toInt()
+                ),
+                PxSize(
+                    (centerOffset.x * pinPxSize.width.value).px,
+                    (centerOffset.y * pinPxSize.height.value).px
+                )
+            )
         }
 
         LaunchedEffect(pointerEvents, isHovered, ownExtension, onHover) {
@@ -126,7 +169,8 @@ fun Pin(
 fun Pin(
     coords: Coordinates,
     itemSelectionState: ItemSelectionState,
-    dimensions: PxSize,
+    dimensions: PxSize? = null,
+    keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
@@ -174,6 +218,7 @@ fun Pin(
     Pin(
         coords,
         dimensions,
+        keepRatio,
         sprite,
         decoratedOnHover,
         decoratedOnClick,
@@ -187,7 +232,8 @@ fun MovablePin(
     coords: Coordinates,
     coordsSetter: (Coordinates) -> Unit,
     itemSelectionState: ItemSelectionState,
-    dimensions: PxSize,
+    dimensions: PxSize? = null,
+    keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
@@ -233,6 +279,7 @@ fun MovablePin(
         coords,
         itemSelectionState,
         dimensions,
+        keepRatio,
         sprite,
         onHover,
         decoratedOnClick,

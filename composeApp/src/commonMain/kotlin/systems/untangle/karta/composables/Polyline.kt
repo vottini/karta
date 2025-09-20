@@ -16,16 +16,17 @@ import androidx.compose.ui.graphics.drawscope.Fill
 
 import systems.untangle.karta.LocalConverter
 import systems.untangle.karta.data.Coordinates
-import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.TileRegion
 import systems.untangle.karta.data.intersects
-import systems.untangle.karta.data.px
 import systems.untangle.karta.selection.SelectionItem
 import systems.untangle.karta.selection.rememberSelectionContext
 
 import karta.composeapp.generated.resources.Res
 import karta.composeapp.generated.resources.blueDot
+import karta.composeapp.generated.resources.greenDot
+
 val blueDot = Res.drawable.blueDot
+val greenDot = Res.drawable.greenDot
 
 fun IntOffset.toOffset()  = Offset(this.x.toFloat(), this.y.toFloat())
 
@@ -146,8 +147,7 @@ fun MovablePolyline(
                 coords = coords,
                 coordsSetter = { coords -> coordsSetter(index, coords) },
                 itemSelectionState = itemState,
-                sprite = blueDot,
-                dimensions = PxSize(16.px, 16.px)
+                sprite = if (itemState.hovered) blueDot else greenDot
             )
         }
     }

@@ -180,7 +180,7 @@ fun App() {
 				coordsSetter = { coords -> homeCoords = coords},
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = PxSize(60.px, 60.px)
+				dimensions = PxSize(30.px, 48.px)
 			)
 		}
 
@@ -192,7 +192,7 @@ fun App() {
 				coords = cefetCoords,
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = PxSize(60.px, 60.px)
+				dimensions = PxSize(30.px, 48.px)
 			)
 		}
 
@@ -205,7 +205,7 @@ fun App() {
 					coords = poi.coordinates,
 					itemSelectionState = itemState,
 					sprite = choosePinResource(itemState),
-					dimensions = PxSize(60.px, 60.px),
+					dimensions = PxSize(30.px, 48.px),
 					onLongPress = {
 						popupContext.show(
 							poi.coordinates,
@@ -234,7 +234,7 @@ fun App() {
 					coordsSetter = { coords -> poi.coordinates = coords },
 					itemSelectionState = itemState,
 					sprite = choosePinResource(itemState),
-					dimensions = PxSize(60.px, 60.px),
+					dimensions = PxSize(30.px, 48.px),
 
 					onLongPress = {
 						popupContext.show(
