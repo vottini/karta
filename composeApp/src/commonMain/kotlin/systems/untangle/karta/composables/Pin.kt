@@ -48,7 +48,7 @@ fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
  *   /      '----------*------,------,
  *   |                 |      |      |
  *   |  pinPxSize's    |      |      |
- *   |  height         |------o------|  centerOffset
+ *   |  height         |------o------|  anchoring
  *   |                 |      |      |  [defaults to (0.5,0,5)]
  *   |                 |      |      |
  *   /                 '------'------'
@@ -68,6 +68,7 @@ fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 fun Pin(
     coords: Coordinates,
     dimensions: PxSize? = null,
+    anchoring: DoubleOffset = DoubleOffset(0.5, 0.5),
     keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
@@ -104,29 +105,21 @@ fun Pin(
         }
     }
 
-    val centerOffset = DoubleOffset(0.5, 1.0)
-
     Geolocated(
         coordinates = coords,
         extension = pinPxSize
     ) { coordsOffset ->
         val pointerEvents = LocalPointerEvents.current
         val pinOffset = remember(coordsOffset, pinPxSize) { IntOffset(
-            coordsOffset.x - (centerOffset.x * pinPxSize.width.value).toInt(),
-            coordsOffset.y - (centerOffset.y * pinPxSize.height.value).toInt()
+            coordsOffset.x - (anchoring.x * pinPxSize.width.value).toInt(),
+            coordsOffset.y - (anchoring.y * pinPxSize.height.value).toInt()
         )}
 
         var isHovered by remember { mutableStateOf(false) }
         val ownExtension = remember(pinOffset, pinPxSize) {
             defineTileRegion(
-                pinOffset + IntOffset(
-                    ((1.0 - centerOffset.x) * pinPxSize.width.value).toInt(),
-                    ((1.0 - centerOffset.y) * pinPxSize.height.value).toInt()
-                ),
-                PxSize(
-                    (centerOffset.x * pinPxSize.width.value).px,
-                    (centerOffset.y * pinPxSize.height.value).px
-                )
+                pinOffset,
+                pinPxSize
             )
         }
 
@@ -170,6 +163,7 @@ fun Pin(
     coords: Coordinates,
     itemSelectionState: ItemSelectionState,
     dimensions: PxSize? = null,
+    anchoring: DoubleOffset = DoubleOffset(0.5, 0.5),
     keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
@@ -218,6 +212,7 @@ fun Pin(
     Pin(
         coords,
         dimensions,
+        anchoring,
         keepRatio,
         sprite,
         decoratedOnHover,
@@ -233,6 +228,7 @@ fun MovablePin(
     coordsSetter: (Coordinates) -> Unit,
     itemSelectionState: ItemSelectionState,
     dimensions: PxSize? = null,
+    anchoring: DoubleOffset = DoubleOffset(0.5, 0.5),
     keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
@@ -279,6 +275,7 @@ fun MovablePin(
         coords,
         itemSelectionState,
         dimensions,
+        anchoring,
         keepRatio,
         sprite,
         onHover,

@@ -38,6 +38,7 @@ import karta.composeapp.generated.resources.greenPin
 import org.jetbrains.compose.resources.DrawableResource
 import systems.untangle.karta.composables.MovablePin
 import systems.untangle.karta.composables.MovablePolyline
+import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.px
 
 val redPin = Res.drawable.redPin
@@ -180,7 +181,8 @@ fun App() {
 				coordsSetter = { coords -> homeCoords = coords},
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = PxSize(30.px, 48.px)
+				dimensions = PxSize(30.px, 48.px),
+				anchoring = DoubleOffset(0.5, 1.0)
 			)
 		}
 
@@ -192,7 +194,8 @@ fun App() {
 				coords = cefetCoords,
 				itemSelectionState = itemState,
 				sprite = choosePinResource(itemState),
-				dimensions = PxSize(30.px, 48.px)
+				dimensions = PxSize(30.px, 48.px),
+				anchoring = DoubleOffset(0.5, 1.0)
 			)
 		}
 
@@ -206,6 +209,7 @@ fun App() {
 					itemSelectionState = itemState,
 					sprite = choosePinResource(itemState),
 					dimensions = PxSize(30.px, 48.px),
+					anchoring = DoubleOffset(0.5, 1.0),
 					onLongPress = {
 						popupContext.show(
 							poi.coordinates,
@@ -235,6 +239,7 @@ fun App() {
 					itemSelectionState = itemState,
 					sprite = choosePinResource(itemState),
 					dimensions = PxSize(30.px, 48.px),
+					anchoring = DoubleOffset(0.5, 1.0),
 
 					onLongPress = {
 						popupContext.show(
