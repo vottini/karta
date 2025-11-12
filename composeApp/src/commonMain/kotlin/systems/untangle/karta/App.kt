@@ -37,7 +37,7 @@ import karta.composeapp.generated.resources.bluePin
 import karta.composeapp.generated.resources.greenPin
 import org.jetbrains.compose.resources.DrawableResource
 import systems.untangle.karta.composables.MovablePin
-import systems.untangle.karta.composables.MovablePolyline
+import systems.untangle.karta.composables.EditablePolyline
 import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.px
 
@@ -109,6 +109,8 @@ fun App() {
 	val movableCreatedPins = remember { mutableStateListOf<PointOfInterest>() }
 	val createdCircles = remember { mutableStateListOf<PointOfInterest>() }
 
+	//val lockedPolylines = remember { mutableStateListOf() }
+
 	val selectionContext = rememberSelectionContext()
 	val popupContext = rememberPopupContext()
 
@@ -158,9 +160,12 @@ fun App() {
 
 		var homeCoords by remember { mutableStateOf(home) }
 		val cefetCoords by remember { mutableStateOf(cefet) }
-		val aeroportCoords = remember { mutableStateListOf <Coordinates> ().apply {
-			addAll(aeroporto)
-		} }
+
+		val aeroportCoords = remember {
+			mutableStateListOf <Coordinates> ().apply {
+				addAll(aeroporto)
+			}
+		}
 
 		SelectionItem(
 			selectionContext = selectionContext,
@@ -286,7 +291,7 @@ fun App() {
 			strokeWidth = 5.0f
 		)
 
-		MovablePolyline(
+		EditablePolyline(
 			coordsList = aeroportCoords.toList(),
 			coordsSetter = { index, value -> aeroportCoords[index] = value },
 			strokeColor = Color.Black,

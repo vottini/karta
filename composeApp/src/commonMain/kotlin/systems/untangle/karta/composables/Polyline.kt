@@ -117,7 +117,7 @@ fun Polyline(
 }
 
 @Composable
-fun MovablePolyline(
+fun EditablePolyline(
     coordsList: List <Coordinates>,
     coordsSetter: (Int, Coordinates) -> Any,
     strokeColor: Color = Color.Black,
