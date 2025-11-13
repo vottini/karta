@@ -13,9 +13,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.Image
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.unit.toIntSize
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+
+import org.jetbrains.compose.resources.DrawableResource
+import org.jetbrains.compose.resources.painterResource
 
 import systems.untangle.karta.LocalPointerEvents
 import systems.untangle.karta.data.Coordinates
@@ -25,17 +27,13 @@ import systems.untangle.karta.input.ButtonEvent
 import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.isInside
 import systems.untangle.karta.selection.ItemSelectionState
-
-import karta.composeapp.generated.resources.Res
-import karta.composeapp.generated.resources.redPin
-import org.jetbrains.compose.resources.DrawableResource
-import org.jetbrains.compose.resources.painterResource
 import systems.untangle.karta.conversion.toDp
 import systems.untangle.karta.data.DoubleOffset
-import systems.untangle.karta.data.div
 import systems.untangle.karta.data.px
-import systems.untangle.karta.data.times
 import systems.untangle.karta.input.ButtonAction
+
+import systems.untangle.karta.generated.resources.Res
+import systems.untangle.karta.generated.resources.redPin
 
 fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 

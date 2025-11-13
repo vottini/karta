@@ -1,6 +1,5 @@
 
 rootProject.name = "Karta"
-enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 pluginManagement {
     repositories {
@@ -29,5 +28,4 @@ dependencyResolutionManagement {
     }
 }
 
-include(":composeApp")
-
+include(":karta")

@@ -14,7 +14,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
-
 import androidx.compose.material.Text
 
 import coil3.compose.AsyncImage
@@ -27,15 +26,15 @@ import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
 
-import karta.composeapp.generated.resources.Res
-import karta.composeapp.generated.resources.grid
-import org.jetbrains.compose.resources.painterResource
-
 import androidx.compose.ui.platform.LocalDensity
 import systems.untangle.karta.conversion.toDp
 import systems.untangle.karta.conversion.toPx
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.plus
+
+import org.jetbrains.compose.resources.painterResource
+import systems.untangle.karta.generated.resources.Res
+import systems.untangle.karta.generated.resources.grid
 
 @Composable
 fun Tile(
