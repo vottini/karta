@@ -7,6 +7,7 @@ plugins {
   alias(libs.plugins.android.kotlin.multiplatform.library)
   alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.compose.compiler)
+  alias(libs.plugins.maven.publish)
 }
 
 repositories {
@@ -36,9 +37,6 @@ kotlin {
       implementation(compose.material)
       implementation(compose.ui)
       implementation(compose.components.resources)
-      implementation(compose.components.uiToolingPreview)
-      implementation(libs.androidx.lifecycle.viewmodel)
-      implementation(libs.androidx.lifecycle.runtime.compose)
       implementation(libs.coil)
       implementation(libs.coil.compose)
       implementation(libs.slf4f)
@@ -56,6 +54,12 @@ kotlin {
   }
 }
 
+compose.resources {
+  publicResClass = true
+  packageOfResClass = "systems.untangle.karta.resources"
+  generateResClass = always
+}
+
 configurations.all {
   resolutionStrategy {
     force("androidx.core:core:1.13.1")
@@ -64,4 +68,4 @@ configurations.all {
 }
 
 group = "systems.untangle"
-version = "0.1.0"
+version = "0.1.3"

@@ -33,8 +33,8 @@ import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.plus
 
 import org.jetbrains.compose.resources.painterResource
-import systems.untangle.karta.generated.resources.Res
-import systems.untangle.karta.generated.resources.grid
+import systems.untangle.karta.resources.Res
+import systems.untangle.karta.resources.grid
 
 @Composable
 fun Tile(

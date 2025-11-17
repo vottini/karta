@@ -21,9 +21,9 @@ import systems.untangle.karta.data.intersects
 import systems.untangle.karta.selection.SelectionItem
 import systems.untangle.karta.selection.rememberSelectionContext
 
-import systems.untangle.karta.generated.resources.Res
-import systems.untangle.karta.generated.resources.blueDot
-import systems.untangle.karta.generated.resources.greenDot
+import systems.untangle.karta.resources.Res
+import systems.untangle.karta.resources.blueDot
+import systems.untangle.karta.resources.greenDot
 
 val blueDot = Res.drawable.blueDot
 val greenDot = Res.drawable.greenDot

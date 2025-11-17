@@ -32,8 +32,8 @@ import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.px
 import systems.untangle.karta.input.ButtonAction
 
-import systems.untangle.karta.generated.resources.Res
-import systems.untangle.karta.generated.resources.redPin
+import systems.untangle.karta.resources.Res
+import systems.untangle.karta.resources.redPin
 
 fun IntOffset.minus(x: Int, y: Int) = IntOffset(this.x - x, this.y - y)
 
