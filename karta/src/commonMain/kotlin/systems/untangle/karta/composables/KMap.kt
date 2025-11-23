@@ -1,7 +1,9 @@
 package systems.untangle.karta.composables
 
 import kotlin.math.sign
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlin.time.Duration.Companion.milliseconds
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,7 +16,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 
-import kotlinx.coroutines.launch
 import systems.untangle.karta.LocalConverter
 import systems.untangle.karta.LocalCursor
 import systems.untangle.karta.LocalPointerEvents
@@ -29,6 +30,10 @@ import systems.untangle.karta.conversion.Converter
 import systems.untangle.karta.conversion.convertToLatLong
 import systems.untangle.karta.conversion.convertToTileCoordinates
 import systems.untangle.karta.data.PxSize
+import systems.untangle.karta.data.ZOOM_DECREMENT
+import systems.untangle.karta.data.ZOOM_INCREMENT
+import systems.untangle.karta.data.ZoomLevel
+import systems.untangle.karta.data.ZoomSpecs
 import systems.untangle.karta.data.div
 import systems.untangle.karta.data.minus
 import systems.untangle.karta.data.px
@@ -40,7 +45,6 @@ import systems.untangle.karta.input.exclusiveListener
 import systems.untangle.karta.input.getPlatformSpecificPointerMonitor
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
-import kotlin.time.Duration.Companion.milliseconds
 
 /*
  *
@@ -102,13 +106,14 @@ fun KMap(
     initialZoom: Int,
     initialCoords: Coordinates,
     viewSize: PxSize,
-    iteractive: Boolean,
+    interactive: Boolean,
+    maxZoom: Int,
+    minZoom: Int,
     onPress: suspend (PointerPosition) -> Unit,
     onLongPress: suspend (PointerPosition) -> Unit,
     onMapDragged: suspend () -> Unit,
     content: @Composable () -> Unit)
 {
-    var zoom by remember { mutableStateOf(initialZoom) }
     var center by remember {
         mutableStateOf(
             convertToTileCoordinates(
@@ -119,6 +124,16 @@ fun KMap(
     }
 
     val pixelDensity = LocalDensity.current.density
+    var zoomSpecs by remember(initialZoom, minZoom, maxZoom) { mutableStateOf(
+        ZoomSpecs(initialZoom, minZoom, maxZoom)
+    )}
+
+    val zoom = remember(zoomSpecs) { ZoomLevel(
+        zoomSpecs.value,
+        { zoomSpecs = zoomSpecs.increment(); center = center.times(2.0) },
+        { zoomSpecs = zoomSpecs.decrement(); center = center.div(2.0) }
+    )}
+
     val viewingBoundingBox by remember(center, viewSize, zoom, pixelDensity) {
         val deltaWidth = (viewSize.halfWidth / kartaTileSize)
         val deltaHeight = (viewSize.halfHeight / kartaTileSize)
@@ -135,8 +150,8 @@ fun KMap(
 
         mutableStateOf(
             BoundingBox(
-                convertToLatLong(zoom, topLeft),
-                convertToLatLong(zoom, bottomRight)
+                convertToLatLong(zoom.level, topLeft),
+                convertToLatLong(zoom.level, bottomRight)
             )
         )
     }
@@ -162,8 +177,8 @@ fun KMap(
     var draggingAvailable by remember { mutableStateOf(true) }
     var pressAvailable by remember { mutableStateOf(true) }
 
-    LaunchedEffect(pointerMonitor, iteractive) {
-        if (!iteractive) {
+    LaunchedEffect(pointerMonitor, interactive) {
+        if (!interactive) {
             return@LaunchedEffect
         }
 
@@ -227,10 +242,14 @@ fun KMap(
                         val change = event.changes.first()
                         val position = change.position
 
-                        val coordinates = convertToLatLong(zoom, DoubleOffset(
+                        val eventOffset = DoubleOffset(
                             center.x + ((position.x.px - viewSize.halfWidth)  / kartaTileSize).value,
                             center.y + ((position.y.px - viewSize.halfHeight) / kartaTileSize).value
-                        ))
+                        )
+
+                        val coordinates = convertToLatLong(
+                            zoom.level,
+                            eventOffset)
 
                         when (event.type) {
                             PointerEventType.Press,
@@ -253,8 +272,23 @@ fun KMap(
 
                             PointerEventType.Scroll -> {
                                 val value = change.scrollDelta.y.toInt().sign
-                                center = if (value < 0) center.times(2.0) else center.div(2.0)
-                                zoom -= value
+                                val action = if (value < 0) ZOOM_INCREMENT else ZOOM_DECREMENT
+
+                                when (action) {
+                                    ZOOM_INCREMENT -> {
+                                        if (zoomSpecs.incrementable()) {
+                                            center = eventOffset.times(2.0)
+                                            zoomSpecs = zoomSpecs.increment()
+                                        }
+                                    }
+
+                                    ZOOM_DECREMENT -> {
+                                        if (zoomSpecs.decrementable()) {
+                                            center = eventOffset.div(2.0)
+                                            zoomSpecs = zoomSpecs.decrement()
+                                        }
+                                    }
+                                }
                             }
                         }
 
@@ -268,7 +302,7 @@ fun KMap(
         for (x in -horizontalTiles..horizontalTiles) {
             for (y in -verticalTiles..verticalTiles) {
                 Tile(
-                    zoom,
+                    zoom.level,
                     center.x.toInt() + x,
                     center.y.toInt() + y,
                     center,

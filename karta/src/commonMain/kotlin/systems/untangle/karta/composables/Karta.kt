@@ -16,9 +16,11 @@ import systems.untangle.karta.network.TileServer
 @Composable
 fun Karta(
     tileServer: TileServer,
+    interactive: Boolean = true,
     initialCoords: Coordinates,
     initialZoom: Int = 14,
-    iteractive: Boolean = true,
+    maxZoom: Int = 19,
+    minZoom: Int = 2,
     onPress: suspend (PointerPosition) -> Unit = {},
     onLongPress: suspend (PointerPosition) -> Unit = {},
     onMapDragged: suspend () -> Unit = {},
@@ -44,7 +46,9 @@ fun Karta(
                 initialZoom,
                 initialCoords,
                 viewSize,
-                iteractive,
+                interactive,
+                maxZoom,
+                minZoom,
                 onPress,
                 onLongPress,
                 onMapDragged,
