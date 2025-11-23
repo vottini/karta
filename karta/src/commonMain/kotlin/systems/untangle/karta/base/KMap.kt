@@ -1,4 +1,4 @@
-package systems.untangle.karta.composables
+package systems.untangle.karta.base
 
 import kotlin.math.sign
 import kotlinx.coroutines.launch
@@ -15,12 +15,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
-
-import systems.untangle.karta.LocalConverter
-import systems.untangle.karta.LocalCursor
-import systems.untangle.karta.LocalPointerEvents
-import systems.untangle.karta.LocalViewingBoundingBox
-import systems.untangle.karta.LocalZoom
 
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.BoundingBox
@@ -169,8 +163,12 @@ fun KMap(
 
     val rawMoveFlow = remember { MutableSharedFlow<PointerPosition>(extraBufferCapacity = 1) }
     val rawButtonFlow = remember { MutableSharedFlow<AugmentedPointerEvent>(extraBufferCapacity = 1) }
+
     val pointerMonitor = remember(rawButtonFlow, rawMoveFlow) {
-        getPlatformSpecificPointerMonitor(rawButtonFlow, rawMoveFlow, 500.milliseconds)
+        getPlatformSpecificPointerMonitor(
+            rawButtonFlow,
+            rawMoveFlow,
+            500.milliseconds)
     }
 
     var leftPressed by remember { mutableStateOf(false) }
@@ -178,10 +176,7 @@ fun KMap(
     var pressAvailable by remember { mutableStateOf(true) }
 
     LaunchedEffect(pointerMonitor, interactive) {
-        if (!interactive) {
-            return@LaunchedEffect
-        }
-
+        if (!interactive) return@LaunchedEffect
         exclusiveListener(pointerMonitor.dragSubscribersFlow) { draggingAvailable = it }
         exclusiveListener(pointerMonitor.pressSubscribersFlow) { pressAvailable = it }
         pointerMonitor.listen(this)
@@ -234,11 +229,10 @@ fun KMap(
         Modifier
             .fillMaxWidth()
             .fillMaxHeight()
-            .pointerInput(Unit) {
+            .pointerInput(center, zoom, viewSize) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
-                        //getLogger().i("CORTE", "TYPE ${event.type} => ${event.changes.first()}")
                         val change = event.changes.first()
                         val position = change.position
 
@@ -277,15 +271,15 @@ fun KMap(
                                 when (action) {
                                     ZOOM_INCREMENT -> {
                                         if (zoomSpecs.incrementable()) {
-                                            center = eventOffset.times(2.0)
                                             zoomSpecs = zoomSpecs.increment()
+                                            center = eventOffset.times(2.0)
                                         }
                                     }
 
                                     ZOOM_DECREMENT -> {
                                         if (zoomSpecs.decrementable()) {
-                                            center = eventOffset.div(2.0)
                                             zoomSpecs = zoomSpecs.decrement()
+                                            center = eventOffset.div(2.0)
                                         }
                                     }
                                 }

@@ -1,4 +1,4 @@
-package systems.untangle.karta.composables
+package systems.untangle.karta
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import systems.untangle.karta.base.KMap
 
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.PxSize

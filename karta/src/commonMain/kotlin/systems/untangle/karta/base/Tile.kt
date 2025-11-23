@@ -1,4 +1,4 @@
-package systems.untangle.karta.composables
+package systems.untangle.karta.base
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas

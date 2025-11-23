@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.DrawableResource
 import org.jetbrains.compose.resources.painterResource
 
-import systems.untangle.karta.LocalPointerEvents
+import systems.untangle.karta.base.LocalPointerEvents
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.defineTileRegion
