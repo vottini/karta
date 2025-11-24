@@ -44,12 +44,17 @@ fun Tile(
     center: DoubleOffset,
     viewSize: PxSize,
     tileServer: TileServer,
+    xModulo: Int,
     displayBoundaries: Boolean = false
 ) {
+    var wrappedXIndex = xIndex
+    while (wrappedXIndex >= xModulo) wrappedXIndex -= xModulo
+    while (wrappedXIndex < 0) wrappedXIndex += xModulo
+
     val formattedUrl = remember(tileServer, zoom, xIndex, yIndex) {
         tileServer.tileUrl
             .replace("{zoom}", zoom.toString())
-            .replace("{x}", xIndex.toString())
+            .replace("{x}", wrappedXIndex.toString())
             .replace("{y}", yIndex.toString())
     }
 

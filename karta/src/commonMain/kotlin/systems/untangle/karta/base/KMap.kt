@@ -39,6 +39,7 @@ import systems.untangle.karta.input.exclusiveListener
 import systems.untangle.karta.input.getPlatformSpecificPointerMonitor
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
+import kotlin.math.pow
 
 /*
  *
@@ -292,16 +293,26 @@ fun KMap(
     ) {
         val horizontalTiles = remember(viewSize) { ((viewSize.width / kartaTileSize).value.toInt() / 2) + 1 }
         val verticalTiles = remember(viewSize) { ((viewSize.height / kartaTileSize).value.toInt() / 2) + 1 }
+        val maxZoomIndex = remember(zoom) { 2.toFloat().pow(zoom.level).toInt() }
+        val validYRange = remember(maxZoomIndex) { 0 .. maxZoomIndex - 1 }
 
-        for (x in -horizontalTiles..horizontalTiles) {
-            for (y in -verticalTiles..verticalTiles) {
+        for (y in -verticalTiles..verticalTiles) {
+            val resultingY = center.y.toInt() + y
+            if (resultingY !in validYRange) {
+                continue
+            }
+
+            for (x in -horizontalTiles..horizontalTiles) {
+                val resultingX = center.x.toInt() + x
+
                 Tile(
                     zoom.level,
-                    center.x.toInt() + x,
-                    center.y.toInt() + y,
+                    resultingX,
+                    resultingY,
                     center,
                     viewSize,
-                    tileServer)
+                    tileServer,
+                    maxZoomIndex)
             }
         }
     }
