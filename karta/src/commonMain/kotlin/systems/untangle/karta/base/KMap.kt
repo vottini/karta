@@ -125,8 +125,8 @@ fun KMap(
 
     val zoom = remember(zoomSpecs) { ZoomLevel(
         zoomSpecs.value,
-        { zoomSpecs = zoomSpecs.increment(); center = center.times(2.0) },
-        { zoomSpecs = zoomSpecs.decrement(); center = center.div(2.0) }
+        { zoomSpecs = zoomSpecs.increment(); center = center.scale(2.0) },
+        { zoomSpecs = zoomSpecs.decrement(); center = center.scale(0.5) }
     )}
 
     val viewingBoundingBox by remember(center, viewSize, zoom, pixelDensity) {
@@ -237,11 +237,12 @@ fun KMap(
                         val change = event.changes.first()
                         val position = change.position
 
-                        val eventOffset = DoubleOffset(
-                            center.x + ((position.x.px - viewSize.halfWidth)  / kartaTileSize).value,
-                            center.y + ((position.y.px - viewSize.halfHeight) / kartaTileSize).value
+                        val offsets = DoubleOffset(
+                            ((position.x.px - viewSize.halfWidth)  / kartaTileSize).value.toDouble(),
+                            ((position.y.px - viewSize.halfHeight) / kartaTileSize).value.toDouble()
                         )
 
+                        val eventOffset = center.add(offsets)
                         val coordinates = convertToLatLong(
                             zoom.level,
                             eventOffset)
@@ -269,18 +270,21 @@ fun KMap(
                                 val value = change.scrollDelta.y.toInt().sign
                                 val action = if (value < 0) ZOOM_INCREMENT else ZOOM_DECREMENT
 
+                                // the cursor should stay in the
+                                // same place when changing the zoom
+
                                 when (action) {
                                     ZOOM_INCREMENT -> {
                                         if (zoomSpecs.incrementable()) {
                                             zoomSpecs = zoomSpecs.increment()
-                                            center = eventOffset.times(2.0)
+                                            center = eventOffset.scale(2.0).add(-offsets)
                                         }
                                     }
 
                                     ZOOM_DECREMENT -> {
                                         if (zoomSpecs.decrementable()) {
                                             zoomSpecs = zoomSpecs.decrement()
-                                            center = eventOffset.div(2.0)
+                                            center = eventOffset.scale(0.5).add(-offsets)
                                         }
                                     }
                                 }
