@@ -1,5 +1,7 @@
 package systems.untangle.karta.data
 
+import androidx.compose.ui.unit.IntOffset
+
 data class PxSize(
     val width: Px,
     val height: Px
@@ -20,5 +22,12 @@ data class PxSize(
     fun div(k: Int) = PxSize(
         width = width / k,
         height = width / k
+    )
+}
+
+fun PxSize.toIntOffset(): IntOffset {
+    return IntOffset(
+        this.width.value.toInt(),
+        this.height.value.toInt(),
     )
 }

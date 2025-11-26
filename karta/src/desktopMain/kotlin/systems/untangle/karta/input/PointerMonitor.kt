@@ -11,7 +11,7 @@ import androidx.compose.ui.input.pointer.isPrimaryPressed
 
 class DesktopPointerMonitor(
     inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
-    rawMoveFlow: SharedFlow <PointerPosition>,
+    rawMoveFlow: SharedFlow <PointerPosition?>,
     longPressDuration: Duration = 500.milliseconds
 ) : PointerMonitor(inputButtonFlow, rawMoveFlow, longPressDuration) {
 
@@ -81,7 +81,7 @@ class DesktopPointerMonitor(
 
 actual fun getPlatformSpecificPointerMonitor(
     inputButtonFlow: SharedFlow<AugmentedPointerEvent>,
-    rawMoveFlow: SharedFlow<PointerPosition>,
+    rawMoveFlow: SharedFlow<PointerPosition?>,
     longPressDuration: Duration
 ): PointerMonitor = DesktopPointerMonitor(
     inputButtonFlow,

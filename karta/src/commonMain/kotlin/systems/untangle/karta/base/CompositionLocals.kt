@@ -11,7 +11,7 @@ import systems.untangle.karta.data.px
 import systems.untangle.karta.input.PointerFlows
 
 val LocalZoom = compositionLocalOf { ZoomLevel(14, {}, {}) }
-val LocalCursor = compositionLocalOf { Coordinates(0.0, 0.0) }
+val LocalCursor = compositionLocalOf <Coordinates?> { null }
 
 val LocalViewingBoundingBox = compositionLocalOf {
     BoundingBox(

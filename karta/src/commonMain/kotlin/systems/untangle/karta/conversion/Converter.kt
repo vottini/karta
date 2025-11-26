@@ -8,6 +8,7 @@ import systems.untangle.karta.data.BoundingBox
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.TileRegion
 import systems.untangle.karta.data.intersects
+import systems.untangle.karta.data.toIntOffset
 
 const val earthRadiusMeters = 6378137.0
 const val radiansToDegrees = 180.0 / PI
@@ -39,13 +40,13 @@ class Converter(
 
     fun insideView(coords: Coordinates, extension: PxSize?) : Boolean {
         if (null != extension) {
-            val apothems = extension.div(2)
+            val apothems = extension.div(2).toIntOffset()
             val offset = convertToOffset(coords)
 
             return tileRegion.intersects(
                 TileRegion(
-                    IntOffset(offset.x - apothems.width.value.toInt(), offset.y - apothems.height.value.toInt()),
-                    IntOffset(offset.x + apothems.width.value.toInt(), offset.y + apothems.height.value.toInt())
+                    offset - apothems,
+                    offset + apothems
                 )
             )
         }

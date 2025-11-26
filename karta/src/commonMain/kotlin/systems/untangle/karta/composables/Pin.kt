@@ -123,8 +123,7 @@ fun Pin(
 
         LaunchedEffect(pointerEvents, isHovered, ownExtension, onHover) {
             pointerEvents.moveFlow.collect { pointerPosition ->
-                val newHoverState = pointerPosition.isInside(ownExtension)
-
+                val newHoverState = pointerPosition?.isInside(ownExtension) ?: false
                 if (newHoverState != isHovered) {
                     isHovered = newHoverState
                     onHover(newHoverState)

@@ -7,7 +7,7 @@ import kotlin.time.Duration
 
 class AndroidPointerMonitor(
     inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
-    rawMoveFlow: SharedFlow<PointerPosition>,
+    rawMoveFlow: SharedFlow<PointerPosition?>,
     longPressDuration: Duration = 500.milliseconds
 ) : PointerMonitor(inputButtonFlow, rawMoveFlow, longPressDuration) {
 
@@ -21,7 +21,7 @@ class AndroidPointerMonitor(
 
 actual fun getPlatformSpecificPointerMonitor(
     inputButtonFlow: SharedFlow<AugmentedPointerEvent>,
-    rawMoveFlow: SharedFlow<PointerPosition>,
+    rawMoveFlow: SharedFlow<PointerPosition?>,
     longPressDuration: Duration
 ): PointerMonitor = AndroidPointerMonitor(
     inputButtonFlow,

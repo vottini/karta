@@ -151,7 +151,7 @@ fun KMap(
         )
     }
 
-    var cursor by remember { mutableStateOf(Coordinates(0.0, 0.0)) }
+    var cursor by remember { mutableStateOf <Coordinates?> (null) }
     val converter by remember(viewingBoundingBox, viewSize, pixelDensity) {
         mutableStateOf(
             Converter(
@@ -162,7 +162,7 @@ fun KMap(
         )
     }
 
-    val rawMoveFlow = remember { MutableSharedFlow<PointerPosition>(extraBufferCapacity = 1) }
+    val rawMoveFlow = remember { MutableSharedFlow<PointerPosition?>(extraBufferCapacity = 1) }
     val rawButtonFlow = remember { MutableSharedFlow<AugmentedPointerEvent>(extraBufferCapacity = 1) }
 
     val pointerMonitor = remember(rawButtonFlow, rawMoveFlow) {
@@ -256,14 +256,19 @@ fun KMap(
                                     )
                                 )
 
+                            PointerEventType.Enter,
                             PointerEventType.Move -> {
                                 cursor = coordinates
                                 rawMoveFlow.tryEmit(
                                     PointerPosition(
-                                        cursor,
+                                        coordinates,
                                         position
                                     )
                                 )
+                            }
+
+                            PointerEventType.Exit -> {
+                                cursor = null
                             }
 
                             PointerEventType.Scroll -> {

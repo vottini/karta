@@ -16,7 +16,7 @@ import androidx.compose.ui.input.pointer.PointerButtons
 
 abstract class PointerMonitor(
     protected val inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
-    protected val rawMoveFlow: SharedFlow <PointerPosition>,
+    protected val rawMoveFlow: SharedFlow <PointerPosition?>,
     protected val longPressDuration: Duration = 500.milliseconds
 ) {
     protected var clicked: Boolean = false
@@ -26,7 +26,7 @@ abstract class PointerMonitor(
     protected var longPressJob: Job? = null
     protected var dragging: Boolean = false
 
-    protected val _moveFlow = MutableSharedFlow <PointerPosition> ()
+    protected val _moveFlow = MutableSharedFlow <PointerPosition?> ()
     protected val _clickFlow = MutableSharedFlow <ButtonEvent> ()
     protected val _shortPressFlow = MutableSharedFlow <PointerPosition> ()
     protected val _longPressFlow = MutableSharedFlow <PointerPosition> ()
@@ -60,6 +60,10 @@ abstract class PointerMonitor(
 
                 dragging = true
                 lastPosition?.let { previous ->
+                    if (null == position) {
+                        return@let
+                    }
+
                     val diff = Offset(
                         position.offset.x - previous.offset.x,
                         position.offset.y - previous.offset.y
@@ -100,6 +104,6 @@ abstract class PointerMonitor(
 
 expect fun getPlatformSpecificPointerMonitor(
     inputButtonFlow: SharedFlow<AugmentedPointerEvent>,
-    rawMoveFlow: SharedFlow<PointerPosition>,
+    rawMoveFlow: SharedFlow<PointerPosition?>,
     longPressDuration: Duration
 ) : PointerMonitor
