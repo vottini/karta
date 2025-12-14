@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import systems.untangle.karta.conversion.Converter
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.BoundingBox
+import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.ZoomLevel
 import systems.untangle.karta.data.px
@@ -22,12 +23,10 @@ val LocalViewingBoundingBox = compositionLocalOf {
 
 val LocalConverter = compositionLocalOf {
     Converter(
-        BoundingBox(
-            Coordinates(1.0, 0.0),
-            Coordinates(0.0, 1.0)
-        ),
+        BoundingBox(Coordinates(1.0, 0.0), Coordinates(0.0, 1.0)),
         PxSize(0.px, 0.px),
-        1f
+        DoubleOffset(0.5, 0.5),
+        1
     )
 }
 

@@ -5,10 +5,12 @@ import kotlin.math.abs
 import androidx.compose.ui.unit.IntOffset
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.BoundingBox
+import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.TileRegion
 import systems.untangle.karta.data.intersects
 import systems.untangle.karta.data.toIntOffset
+import systems.untangle.karta.kartaTileSize
 
 const val earthRadiusMeters = 6378137.0
 const val radiansToDegrees = 180.0 / PI
@@ -16,10 +18,10 @@ const val radiansToDegrees = 180.0 / PI
 class Converter(
     private val viewingBoundingBox: BoundingBox,
     private val viewPxSize: PxSize,
-    private val pixelDensity: Float
+    private val center: DoubleOffset,
+    private val zoomLevel: Int
 ) {
-    private val horizontalPxDelta = (viewPxSize.width.value / pixelDensity) / viewingBoundingBox.deltaLongitude
-    private val verticalPxDelta = (viewPxSize.height.value / pixelDensity) / viewingBoundingBox.deltaLatitude
+    private val horizontalPixels = viewPxSize.width.value / viewingBoundingBox.deltaLongitude
 
     val tileRegion by lazy {
         TileRegion(
@@ -29,12 +31,18 @@ class Converter(
     }
 
     fun convertToOffset(coordinates: Coordinates) : IntOffset {
-        val origin = viewingBoundingBox.topLeft
-        val diff = coordinates.minus(origin)
+        val tileCoords = convertToTileCoordinates(zoomLevel, coordinates)
+        val offsetFromCenter = tileCoords.minus(center)
+            .scale(kartaTileSize.value.toDouble())
+
+        val centerOffset = DoubleOffset(
+            viewPxSize.halfWidth.value.toDouble(),
+            viewPxSize.halfHeight.value.toDouble()
+        )
 
         return IntOffset(
-            (diff.longitude * horizontalPxDelta).toInt(),
-            (diff.latitude * verticalPxDelta).toInt()
+            (offsetFromCenter.x + centerOffset.x).toInt(),
+            (offsetFromCenter.y + centerOffset.y).toInt()
         )
     }
 
@@ -61,7 +69,6 @@ class Converter(
 
     fun metersToPixels(distanceInMeters: Float) : Float {
         val angle = distanceInMeters / earthRadiusMeters
-        val totalPixels = horizontalPxDelta * pixelDensity
-        return abs(angle * totalPixels * radiansToDegrees).toFloat()
+        return abs(angle * horizontalPixels * radiansToDegrees).toFloat()
     }
 }

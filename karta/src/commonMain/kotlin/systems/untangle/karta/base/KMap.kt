@@ -118,7 +118,6 @@ fun KMap(
         )
     }
 
-    val pixelDensity = LocalDensity.current.density
     var zoomSpecs by remember(initialZoom, minZoom, maxZoom) { mutableStateOf(
         ZoomSpecs(initialZoom, minZoom, maxZoom)
     )}
@@ -129,7 +128,7 @@ fun KMap(
         { zoomSpecs = zoomSpecs.decrement(); center = center.scale(0.5) }
     )}
 
-    val viewingBoundingBox by remember(center, viewSize, zoom, pixelDensity) {
+    val viewingBoundingBox by remember(center, viewSize, zoom) {
         val deltaWidth = (viewSize.halfWidth / kartaTileSize)
         val deltaHeight = (viewSize.halfHeight / kartaTileSize)
 
@@ -152,12 +151,13 @@ fun KMap(
     }
 
     var cursor by remember { mutableStateOf <Coordinates?> (null) }
-    val converter by remember(viewingBoundingBox, viewSize, pixelDensity) {
+    val converter by remember(viewingBoundingBox, viewSize, zoom) {
         mutableStateOf(
             Converter(
                 viewingBoundingBox,
                 viewSize,
-                pixelDensity
+                center,
+                zoom.level
             )
         )
     }
@@ -282,14 +282,14 @@ fun KMap(
                                     ZOOM_INCREMENT -> {
                                         if (zoomSpecs.incrementable()) {
                                             zoomSpecs = zoomSpecs.increment()
-                                            center = eventOffset.scale(2.0).add(-offsets)
+                                            center = eventOffset.scale(2.0).minus(offsets)
                                         }
                                     }
 
                                     ZOOM_DECREMENT -> {
                                         if (zoomSpecs.decrementable()) {
                                             zoomSpecs = zoomSpecs.decrement()
-                                            center = eventOffset.scale(0.5).add(-offsets)
+                                            center = eventOffset.scale(0.5).minus(offsets)
                                         }
                                     }
                                 }
