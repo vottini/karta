@@ -14,6 +14,7 @@ import systems.untangle.karta.data.px
 import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.network.TileServer
 
+@Suppress("unused")
 @Composable
 fun Karta(
     tileServer: TileServer,

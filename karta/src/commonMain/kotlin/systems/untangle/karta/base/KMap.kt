@@ -23,6 +23,7 @@ import systems.untangle.karta.conversion.Converter
 
 import systems.untangle.karta.conversion.convertToLatLong
 import systems.untangle.karta.conversion.convertToTileCoordinates
+import systems.untangle.karta.conversion.wrapLongitude
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.ZOOM_DECREMENT
 import systems.untangle.karta.data.ZOOM_INCREMENT
@@ -212,16 +213,16 @@ fun KMap(
         }
     }
 
-    LaunchedEffect(pointerEvents, leftPressed, draggingAvailable) {
+    LaunchedEffect(pointerEvents, leftPressed, draggingAvailable, zoom) {
         if (leftPressed && draggingAvailable) {
             pointerEvents.dragFlow.collect { deltaPosition ->
                 val dragged = deltaPosition.diff
                 onMapDragged.invoke()
 
-                center = DoubleOffset(
+                center = zoom.curtail(DoubleOffset(
                     center.x - (dragged.x.px / kartaTileSize).value,
                     center.y - (dragged.y.px / kartaTileSize).value
-                )
+                ))
             }
         }
     }
@@ -243,9 +244,7 @@ fun KMap(
                         )
 
                         val eventOffset = center.add(offsets)
-                        val coordinates = convertToLatLong(
-                            zoom.level,
-                            eventOffset)
+                        val coordinates = convertToLatLong(zoom.level, eventOffset).wrapLongitude()
 
                         when (event.type) {
                             PointerEventType.Press,

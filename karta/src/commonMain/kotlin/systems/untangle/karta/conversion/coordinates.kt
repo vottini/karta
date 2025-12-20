@@ -12,10 +12,22 @@ import kotlin.math.sinh
 
 fun convertToLatLong(zoom: Int, tileOffset: DoubleOffset) : Coordinates {
     val numberOfTiles = (1 shl zoom)
-    val longitude = (tileOffset.x / numberOfTiles) * 360.0 - 180.0
     val latRadians = atan(sinh(PI * (1.0 - (2.0 * tileOffset.y / numberOfTiles))))
     val latitude = (latRadians * 180.0) / PI
+
+    val longitude = (tileOffset.x / numberOfTiles) * 360.0 - 180.0
     return Coordinates(latitude, longitude)
+}
+
+fun Coordinates.wrapLongitude(): Coordinates {
+    var longitude = this.longitude
+    while (longitude <= -180) longitude += 360
+    while (longitude >  +180) longitude -= 360
+
+    return Coordinates(
+        this.latitude,
+        longitude
+    )
 }
 
 fun convertToTileCoordinates(zoom: Int, coordinates: Coordinates) : DoubleOffset {
