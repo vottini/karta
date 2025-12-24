@@ -9,7 +9,12 @@ data class PointerPosition(
     val offset: Offset
 )
 
+val outsideScreen = PointerPosition(
+    Coordinates(Double.NaN, Double.NaN),
+    Offset(Float.NaN, Float.NaN)
+)
 
+fun PointerPosition.isOutsideScreen() = this === outsideScreen
 fun PointerPosition.isInside(tileRegion: TileRegion) : Boolean {
     val (x, y) = this.offset
 

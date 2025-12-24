@@ -28,6 +28,7 @@ import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.isInside
 import systems.untangle.karta.selection.ItemSelectionState
 import systems.untangle.karta.conversion.toDp
+import systems.untangle.karta.conversion.wrapLongitude
 import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.px
 import systems.untangle.karta.input.ButtonAction
@@ -69,6 +70,7 @@ fun Pin(
     anchoring: DoubleOffset = DoubleOffset(0.5, 0.5),
     keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
+    wrapLongitude: Boolean = true,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
     onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
@@ -105,7 +107,8 @@ fun Pin(
 
     Geolocated(
         coordinates = coords,
-        extension = pinPxSize
+        extension = pinPxSize,
+        wrapLongitude = wrapLongitude
     ) { coordsOffset ->
         val pointerEvents = LocalPointerEvents.current
         val pinOffset = remember(coordsOffset, pinPxSize) { IntOffset(
@@ -163,6 +166,7 @@ fun Pin(
     anchoring: DoubleOffset = DoubleOffset(0.5, 0.5),
     keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
+    wrapLongitude: Boolean = true,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
     onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
@@ -212,6 +216,7 @@ fun Pin(
         anchoring,
         keepRatio,
         sprite,
+        wrapLongitude,
         decoratedOnHover,
         decoratedOnClick,
         decoratedOnShortPress,
@@ -228,6 +233,7 @@ fun MovablePin(
     anchoring: DoubleOffset = DoubleOffset(0.5, 0.5),
     keepRatio: Boolean = true,
     sprite: DrawableResource = Res.drawable.redPin,
+    wrapLongitude: Boolean = true,
     onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
     onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
     onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
@@ -255,13 +261,10 @@ fun MovablePin(
                 if (itemSelectionState.grabbed) {
                     launch {
                         pointerEvents.dragFlow.collect { deltaPosition ->
-                            coordsSetter(
-                                deltaPosition.current.coordinates
-                                    .plus(offset.value)
-                            )
+                            val newCoordinates = deltaPosition.current.coordinates.plus(offset.value)
+                            coordsSetter(newCoordinates.wrapLongitude())
                         }
                     }
-
                 }
 
                 onSelectionChange()
@@ -275,6 +278,7 @@ fun MovablePin(
         anchoring,
         keepRatio,
         sprite,
+        wrapLongitude,
         onHover,
         decoratedOnClick,
         onShortPress,

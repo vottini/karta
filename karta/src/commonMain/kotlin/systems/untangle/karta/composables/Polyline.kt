@@ -39,6 +39,10 @@ fun Polyline(
     fillAlpha: Float = 1f,
     closed: Boolean = false
 ) {
+    if (coordsList.isEmpty()) {
+        return
+    }
+
     val converter = LocalConverter.current
     val offsets = remember(coordsList, converter) {
         coordsList.map { coords ->
@@ -74,12 +78,12 @@ fun Polyline(
     }
 
     val polylineBoundaries = remember(offsets) {
-        var xMin = converter.tileRegion.bottomRight.x
-        var yMin = converter.tileRegion.bottomRight.y
-        var xMax = converter.tileRegion.topLeft.x
-        var yMax = converter.tileRegion.topLeft.y
+        var xMin = offsets[0].x.toInt()
+        var xMax = offsets[0].x.toInt()
+        var yMin = offsets[0].y.toInt()
+        var yMax = offsets[0].y.toInt()
 
-        offsets.forEach { offset ->
+        offsets.drop(1).forEach { offset ->
             xMin = min(xMin, offset.x.toInt())
             yMin = min(yMin, offset.y.toInt())
             xMax = max(xMax, offset.x.toInt())
@@ -93,6 +97,7 @@ fun Polyline(
     }
 
     if (!converter.tileRegion.intersects(polylineBoundaries)) {
+        print("${converter.tileRegion} DOES NOT INTERSECT $polylineBoundaries")
         return
     }
 
@@ -147,19 +152,9 @@ fun EditablePolyline(
                 coords = coords,
                 coordsSetter = { coords -> coordsSetter(index, coords) },
                 itemSelectionState = itemState,
-                sprite = if (itemState.hovered) blueDot else greenDot
+                sprite = if (itemState.hovered) blueDot else greenDot,
+                wrapLongitude = false
             )
         }
     }
 }
-
-/**
- *  Circle(
- *    coord,
- *    radius = 5f,
- *    radiusUnit = DistanceUnit.PIXELS,
- *    borderWidth = 1f,
- *    borderColor = strokeColor,
- *    fillColor = Color.Blue
- *  )
- **/

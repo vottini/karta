@@ -32,12 +32,12 @@ fun TileRegion.intersects(other: TileRegion) : Boolean {
      * Sq2 = (C,D)
      *                          ProjY(1)
      *  A-----------.             _
-     *  |           |             {   ProjY(2)
-     *  |      C----+-----.       { . .  _ . . _
-     *  |      |    |     |       {      {     }   IntercY(1,2)
-     *  |      |    |     |       {      {     }
-     *  '------+----B     |       - . .  { . . -
-     *         |          |              {
+     *  |           |             |   ProjY(2)
+     *  |      C----+-----.       | . .  _ . . _
+     *  |      |    |     |       |      |     |   IntercY(1,2)
+     *  |      |    |     |       |      |     |
+     *  '------+----B     |       - . .  | . . -
+     *         |          |              |
      *         '----------D              -
      *
      *
@@ -62,7 +62,7 @@ fun TileRegion.intersects(other: TileRegion) : Boolean {
     )
 
     return (
-        (bottomRightIntersection.x > topLeftIntersection.x) &&
-        (bottomRightIntersection.y > topLeftIntersection.y)
+        (bottomRightIntersection.x >= topLeftIntersection.x) &&
+        (bottomRightIntersection.y >= topLeftIntersection.y)
     )
 }

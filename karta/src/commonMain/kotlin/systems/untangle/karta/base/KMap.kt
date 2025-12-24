@@ -244,23 +244,27 @@ fun KMap(
                         )
 
                         val eventOffset = center.add(offsets)
-                        val coordinates = convertToLatLong(zoom.level, eventOffset).wrapLongitude()
+                        val wrappedCoordinates = convertToLatLong(zoom.level, eventOffset)
+                            .wrapLongitude()
 
                         when (event.type) {
                             PointerEventType.Press,
                             PointerEventType.Release ->
                                 rawButtonFlow.tryEmit(
                                     AugmentedPointerEvent(event,
-                                        PointerPosition(coordinates, position)
+                                        PointerPosition(
+                                            wrappedCoordinates,
+                                            position
+                                        )
                                     )
                                 )
 
                             PointerEventType.Enter,
                             PointerEventType.Move -> {
-                                cursor = coordinates
+                                cursor = wrappedCoordinates
                                 rawMoveFlow.tryEmit(
                                     PointerPosition(
-                                        coordinates,
+                                        wrappedCoordinates,
                                         position
                                     )
                                 )

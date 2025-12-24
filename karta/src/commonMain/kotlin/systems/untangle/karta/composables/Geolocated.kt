@@ -5,7 +5,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.IntOffset
 import systems.untangle.karta.base.LocalConverter
 import systems.untangle.karta.conversion.correctedPx
-import systems.untangle.karta.conversion.longitudeDMS
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.PxSize
 
@@ -14,18 +13,21 @@ fun Geolocated(
     coordinates: Coordinates,
     offset: IntOffset? = null,
     extension: PxSize? = null,
+    wrapLongitude: Boolean = true,
     content: @Composable (coordsOffset: IntOffset) -> Unit
 ) {
     val converter = LocalConverter.current
     val coordsOffsets = remember(coordinates, converter, offset) {
-        val offsets = mutableListOf<IntOffset>()
         val finalOffset = offset ?: IntOffset(0, 0)
-        val turns = listOf(0, -360, 360)
+
+        val offsets = mutableListOf<IntOffset>()
+        val turns = if (wrapLongitude) listOf(0, -360, 360)
+            else listOf(0)
 
         turns.forEach { turn ->
-            val turnCoords = coordinates.copy(longitude = coordinates.longitude - turn)
+            val turnCoords = coordinates.copy(longitude = coordinates.longitude + turn)
             val offset = converter.convertToOffset(turnCoords).minus(finalOffset)
-            if (converter.insideView(coordinates, extension)) {
+            if (converter.insideView(turnCoords, extension)) {
                 offsets.add(offset)
             }
         }

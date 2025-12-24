@@ -20,13 +20,13 @@ fun convertToLatLong(zoom: Int, tileOffset: DoubleOffset) : Coordinates {
 }
 
 fun Coordinates.wrapLongitude(): Coordinates {
-    var longitude = this.longitude
-    while (longitude <= -180) longitude += 360
-    while (longitude >  +180) longitude -= 360
+    var wrappedLongitude = this.longitude
+    while (wrappedLongitude <= -180) wrappedLongitude += 360
+    while (wrappedLongitude >  +180) wrappedLongitude -= 360
 
     return Coordinates(
         this.latitude,
-        longitude
+        wrappedLongitude
     )
 }
 
