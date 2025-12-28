@@ -16,7 +16,7 @@ data class ItemSelectionState(
 ) {
     val hovered = currentState.currentHover == itemId
     val selected = currentState.currentSelection == itemId
-    val grabbed = selected && currentState.grabbing
+    val grabbed = hovered && selected && currentState.grabbing
 
     suspend fun setHovered() = emitter(currentState.copy(currentHover = itemId))
     suspend fun setSelected() = emitter(currentState.copy(currentSelection = itemId))
