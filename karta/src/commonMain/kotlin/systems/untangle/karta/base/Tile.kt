@@ -36,6 +36,12 @@ import org.jetbrains.compose.resources.painterResource
 import systems.untangle.karta.resources.Res
 import systems.untangle.karta.resources.grid
 
+/**
+ * Individual tile component.
+ * They are instantiated and panned around by KMap,
+ * don't use them directly.
+ */
+
 @Composable
 fun Tile(
     zoom: Int,

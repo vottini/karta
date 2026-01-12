@@ -93,7 +93,12 @@ import kotlin.math.pow
  */
 
 /**
- * Event capture and tile display composable
+ * Tile display component.
+ * This is an internal component of Karta and should not
+ * be used directly. It handles input event capture and
+ * tile display, being responsible for the panning of
+ * the tiles.
+ *
  */
 
 @Composable

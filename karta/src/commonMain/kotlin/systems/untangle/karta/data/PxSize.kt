@@ -2,6 +2,10 @@ package systems.untangle.karta.data
 
 import androidx.compose.ui.unit.IntOffset
 
+/**
+ * Rectangular dimensions in absolute pixel units.
+ */
+
 data class PxSize(
     val width: Px,
     val height: Px

@@ -97,7 +97,6 @@ fun Polyline(
     }
 
     if (!converter.tileRegion.intersects(polylineBoundaries)) {
-        print("${converter.tileRegion} DOES NOT INTERSECT $polylineBoundaries")
         return
     }
 

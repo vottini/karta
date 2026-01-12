@@ -3,6 +3,10 @@ package systems.untangle.karta.data
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.Stable
 
+/**
+ * Absolute pixel size unit.
+ */
+
 @Immutable
 data class Px(
     val value: Float

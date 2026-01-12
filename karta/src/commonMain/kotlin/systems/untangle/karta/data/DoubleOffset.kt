@@ -2,6 +2,11 @@ package systems.untangle.karta.data
 
 import androidx.compose.ui.unit.IntOffset
 
+/**
+ * Stores offsets of the x and y directions.
+ * Comes with operations to scale, invert and add offsets.
+ */
+
 data class DoubleOffset(
     val x: Double,
     val y: Double

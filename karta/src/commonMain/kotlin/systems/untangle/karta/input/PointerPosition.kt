@@ -4,6 +4,12 @@ import androidx.compose.ui.geometry.Offset
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.TileRegion
 
+/**
+ * data class holding the absolute geographical
+ * position of an event as well as its tile coordinates
+ * offsets from the origin
+ */
+
 data class PointerPosition(
     val coordinates: Coordinates,
     val offset: Offset

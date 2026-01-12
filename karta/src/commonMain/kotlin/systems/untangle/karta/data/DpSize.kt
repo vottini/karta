@@ -2,6 +2,10 @@ package systems.untangle.karta.data
 
 import androidx.compose.ui.unit.Dp
 
+/**
+ * Device dependent pixel size unit.
+ */
+
 data class DpSize(
     val width: Dp,
     val height: Dp

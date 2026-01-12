@@ -1,5 +1,9 @@
 package systems.untangle.karta.data
 
+/**
+ * A geographical coordinate
+ */
+
 data class Coordinates(
     val latitude: Double,
     val longitude: Double

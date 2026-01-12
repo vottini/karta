@@ -61,5 +61,5 @@ fun SelectionItem(
         }
     }
 
-	content(itemState)
+    content(itemState)
 }
