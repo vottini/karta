@@ -8,6 +8,7 @@ plugins {
   alias(libs.plugins.compose.multiplatform)
   alias(libs.plugins.compose.compiler)
   alias(libs.plugins.maven.publish)
+  signing
 }
 
 repositories {
@@ -69,4 +70,42 @@ configurations.all {
 
 group = "systems.untangle"
 version = "0.1.4"
+
+mavenPublishing {
+    publishToMavenCentral()
+    signAllPublications()
+
+    coordinates(
+        group.toString(),
+        "karta",
+        version.toString()
+    )
+
+    pom {
+        name = "Karta"
+        description = "A tile map component in pure compose multiplatform"
+        inceptionYear = "2025"
+        url = "https://github.com/votini/karta"
+
+        licenses {
+            license {
+                name = "MIT License"
+                url = "http://www.opensource.org/licenses/mit-license.php"
+            }
+        }
+
+        developers {
+            developer {
+                name = "Gustavo Venturini"
+                email = "gustavo.c.venturini@gmail.com"
+            }
+        }
+
+        scm {
+            url = "https://github.com/votini/karta"
+            connection = "scm:git:git://github.com:vottini/karta.git"
+            developerConnection = "scm:git:ssh://github.com:vottini/karta.git"
+        }
+    }
+}
 
