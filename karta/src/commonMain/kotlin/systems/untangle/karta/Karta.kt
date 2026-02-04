@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import systems.untangle.karta.base.KMap
 
@@ -34,6 +35,7 @@ fun Karta(
         Modifier
             .fillMaxWidth()
             .fillMaxHeight()
+            .graphicsLayer(clip = true)
 
             .onSizeChanged { size ->
                 val newViewPxSize = PxSize(size.width.px, size.height.px)
