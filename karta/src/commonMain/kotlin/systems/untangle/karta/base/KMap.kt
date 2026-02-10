@@ -130,7 +130,7 @@ fun KMap(
         )
     }
 
-    var zoomSpecs by remember(initialZoom, minZoom, maxZoom) {
+    var zoomSpecs by remember(minZoom, maxZoom) {
         mutableStateOf(
             ZoomSpecs(
                 initialZoom,
