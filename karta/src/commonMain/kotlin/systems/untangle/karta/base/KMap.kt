@@ -15,6 +15,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
 
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.BoundingBox
@@ -25,6 +27,7 @@ import systems.untangle.karta.conversion.convertToLatLong
 import systems.untangle.karta.conversion.convertToTileCoordinates
 import systems.untangle.karta.conversion.wrapLongitude
 import systems.untangle.karta.data.PxSize
+import systems.untangle.karta.data.ViewSpec
 import systems.untangle.karta.data.ZOOM_DECREMENT
 import systems.untangle.karta.data.ZOOM_INCREMENT
 import systems.untangle.karta.data.ZoomLevel
@@ -96,8 +99,8 @@ import kotlin.math.pow
  * Tile display component.
  * This is an internal component of Karta and should not
  * be used directly. It handles input event capture and
- * tile display, being responsible for the panning of
- * the tiles.
+ * the display of tiles, being responsible for the panning
+ * and zooming
  *
  */
 
@@ -110,9 +113,12 @@ fun KMap(
     interactive: Boolean,
     maxZoom: Int,
     minZoom: Int,
+    viewFlow: Flow<ViewSpec>?,
     onPress: suspend (PointerPosition) -> Unit,
     onLongPress: suspend (PointerPosition) -> Unit,
-    onMapDragged: suspend () -> Unit,
+    onCursorMove: suspend (PointerPosition) -> Unit,
+    onMapDragged: suspend (Coordinates) -> Unit,
+    onZoomChange: suspend (Int) -> Unit = {},
     content: @Composable () -> Unit)
 {
     var center by remember {
@@ -124,15 +130,45 @@ fun KMap(
         )
     }
 
-    var zoomSpecs by remember(initialZoom, minZoom, maxZoom) { mutableStateOf(
-        ZoomSpecs(initialZoom, minZoom, maxZoom)
-    )}
+    var zoomSpecs by remember(initialZoom, minZoom, maxZoom) {
+        mutableStateOf(
+            ZoomSpecs(
+                initialZoom,
+                minZoom,
+                maxZoom)
+        )
+    }
 
-    val zoom = remember(zoomSpecs) { ZoomLevel(
-        zoomSpecs.value,
-        { zoomSpecs = zoomSpecs.increment(); center = center.scale(2.0) },
-        { zoomSpecs = zoomSpecs.decrement(); center = center.scale(0.5) }
-    )}
+    val zoom = remember(zoomSpecs) {
+        ZoomLevel(
+            zoomSpecs.value,
+            { zoomSpecs = zoomSpecs.increment(); center = center.scale(2.0) },
+            { zoomSpecs = zoomSpecs.decrement(); center = center.scale(0.5) }
+        )
+    }
+
+    LaunchedEffect(zoomSpecs) {
+        onZoomChange.invoke(zoomSpecs.value)
+    }
+
+    LaunchedEffect(viewFlow) {
+        viewFlow?.collect { spec ->
+            if (null != spec.zoom) {
+                zoomSpecs = ZoomSpecs(
+                    spec.zoom,
+                    minZoom,
+                    maxZoom
+                )
+            }
+
+            if (null != spec.centerCoordinates) {
+                center = convertToTileCoordinates(
+                    zoomSpecs.value,
+                    spec.centerCoordinates
+                )
+            }
+        }
+    }
 
     val viewingBoundingBox by remember(center, viewSize, zoom) {
         val deltaWidth = (viewSize.halfWidth / kartaTileSize)
@@ -193,6 +229,12 @@ fun KMap(
         pointerMonitor.pointerFlows
     }
 
+    LaunchedEffect(pointerEvents) {
+        pointerEvents.moveFlow.collect { position ->
+            if (null != position) onCursorMove.invoke(position)
+        }
+    }
+
     LaunchedEffect(pointerEvents, pressAvailable) {
         if (pressAvailable) {
             launch {
@@ -222,14 +264,19 @@ fun KMap(
         if (leftPressed && draggingAvailable) {
             pointerEvents.dragFlow.collect { deltaPosition ->
                 val dragged = deltaPosition.diff
-                onMapDragged.invoke()
-
                 center = zoom.curtail(DoubleOffset(
                     center.x - (dragged.x.px / kartaTileSize).value,
                     center.y - (dragged.y.px / kartaTileSize).value
                 ))
+
+                val newCenter = convertToLatLong(zoom.level, center)
+                onMapDragged.invoke(newCenter)
             }
         }
+    }
+
+    LaunchedEffect(zoomSpecs) {
+
     }
 
     Box(
