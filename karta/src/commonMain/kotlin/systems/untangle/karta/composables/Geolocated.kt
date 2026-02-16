@@ -8,6 +8,26 @@ import systems.untangle.karta.conversion.correctedPx
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.PxSize
 
+/*
+ *    window origin
+ *        (0,0)
+ *          *
+ *          |
+ *          |        offset
+ *   /      '----------*-------------,
+ *   |                 |             |
+ *   |  extension      |             |
+ *   |  height         |             |
+ *   |                 |             |
+ *   |                 |             |
+ *   /                 '-------------'
+ *
+ *                     /-------------/
+ *                        extension
+ *                         width
+ *
+ */
+
 @Composable
 fun Geolocated(
     coordinates: Coordinates,
