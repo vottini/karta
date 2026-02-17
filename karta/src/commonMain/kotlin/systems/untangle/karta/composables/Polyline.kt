@@ -24,11 +24,16 @@ import systems.untangle.karta.selection.rememberSelectionContext
 import systems.untangle.karta.resources.Res
 import systems.untangle.karta.resources.blueDot
 import systems.untangle.karta.resources.greenDot
+import systems.untangle.karta.selection.ItemSelectionState
+import systems.untangle.karta.selection.SelectionState
 
 val blueDot = Res.drawable.blueDot
 val greenDot = Res.drawable.greenDot
 
-fun IntOffset.toOffset()  = Offset(this.x.toFloat(), this.y.toFloat())
+fun IntOffset.toOffset() = Offset(
+    this.x.toFloat(),
+    this.y.toFloat()
+)
 
 @Composable
 fun Polyline(
@@ -123,12 +128,16 @@ fun Polyline(
 @Composable
 fun EditablePolyline(
     coordsList: List <Coordinates>,
-    coordsSetter: (Int, Coordinates) -> Any,
+    coordsSetter: (Int, Coordinates) -> Unit,
     strokeColor: Color = Color.Black,
     strokeWidth: Float = 1.0f,
     fillColor: Color? = null,
     fillAlpha: Float = 1f,
-    closed: Boolean = false
+    closed: Boolean = false,
+    edgeContents: @Composable (ItemSelectionState) -> Unit = { itemState ->
+        val resource = if (itemState.hovered) blueDot else greenDot
+        Sprite(resource = resource)
+    }
 ) {
     val selectionContext = rememberSelectionContext()
 
@@ -147,13 +156,15 @@ fun EditablePolyline(
             selectionContext = selectionContext,
             itemId = "$index"
         ) { itemState ->
-            MovablePin(
+            MovableMarker(
                 coords = coords,
                 coordsSetter = { coords -> coordsSetter(index, coords) },
                 itemSelectionState = itemState,
-                sprite = if (itemState.hovered) blueDot else greenDot,
                 wrapLongitude = false
-            )
+            ) {
+                edgeContents(itemState)
+            }
         }
+
     }
 }

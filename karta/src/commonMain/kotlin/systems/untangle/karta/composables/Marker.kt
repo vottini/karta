@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 import systems.untangle.karta.base.LocalPointerEvents
+import systems.untangle.karta.conversion.wrapLongitude
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.defineTileRegion
@@ -23,6 +24,8 @@ import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.isInside
 import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.data.px
+import systems.untangle.karta.input.ButtonAction
+import systems.untangle.karta.selection.ItemSelectionState
 
 /*
  *   ,------,------,
@@ -59,7 +62,7 @@ fun Marker(
         wrapLongitude = wrapLongitude
     ) { coordsOffset ->
         val pointerEvents = LocalPointerEvents.current
-        val markerOffset = remember(coordsOffset, markerPxSize) { IntOffset(
+        val markerOffset = remember(coordsOffset, markerPxSize.value) { IntOffset(
             coordsOffset.x - (anchoring.x * markerPxSize.value.width.value).toInt(),
             coordsOffset.y - (anchoring.y * markerPxSize.value.height.value).toInt()
         )}
@@ -107,4 +110,125 @@ fun Marker(
             contents()
         }
     }
+}
+
+@Composable
+fun Marker(
+    coords: Coordinates,
+    itemSelectionState: ItemSelectionState,
+    anchoring: DoubleOffset = DoubleOffset(0.5, 0.5),
+    wrapLongitude: Boolean = true,
+    onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
+    onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
+    onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onLongPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onSelectionChange: suspend CoroutineScope.() -> Unit = {},
+    contents: @Composable () -> Unit
+) {
+    LaunchedEffect(itemSelectionState) {
+        onSelectionChange()
+    }
+
+    val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit =
+        remember(itemSelectionState, onHover) {
+            { hoveredNow ->
+                if (hoveredNow && itemSelectionState.noneHovered) itemSelectionState.setHovered()
+                if (itemSelectionState.hovered && !hoveredNow) itemSelectionState.clearHovered()
+                onHover(hoveredNow)
+            }
+        }
+
+    val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
+        remember (itemSelectionState, onClick) {
+            { buttonEvent ->
+                itemSelectionState.setClicked()
+                onClick(buttonEvent)
+            }
+        }
+
+    val decoratedOnShortPress: suspend CoroutineScope.(PointerPosition) -> Unit =
+        remember (itemSelectionState, onShortPress) {
+            { position ->
+                if (!itemSelectionState.selected) itemSelectionState.setSelected()
+                onShortPress(position)
+            }
+        }
+
+    val decoratedOnLongPress: suspend CoroutineScope.(PointerPosition) -> Unit =
+        remember (itemSelectionState, onLongPress) {
+            { position ->
+                if (!itemSelectionState.selected) itemSelectionState.setSelected()
+                onLongPress(position)
+            }
+        }
+
+    Marker(
+        coords,
+        anchoring,
+        wrapLongitude,
+        decoratedOnHover,
+        decoratedOnClick,
+        decoratedOnShortPress,
+        decoratedOnLongPress,
+        contents
+    )
+}
+
+@Composable
+fun MovableMarker(
+    coords: Coordinates,
+    coordsSetter: (Coordinates) -> Unit,
+    itemSelectionState: ItemSelectionState,
+    anchoring: DoubleOffset = DoubleOffset(0.5, 0.5),
+    wrapLongitude: Boolean = true,
+    onHover: suspend CoroutineScope.(Boolean) -> Unit = {},
+    onClick: suspend CoroutineScope.(ButtonEvent) -> Unit = {},
+    onShortPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onLongPress: suspend CoroutineScope.(PointerPosition) -> Unit = {},
+    onSelectionChange: suspend CoroutineScope.() -> Unit = {},
+    contents: @Composable () -> Unit
+) {
+    val pointerEvents = LocalPointerEvents.current
+    val offset = remember { mutableStateOf(Coordinates(0.0, 0.0)) }
+
+    val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
+        remember (itemSelectionState, onClick) {
+            { event ->
+                if (event.action == ButtonAction.PRESS) {
+                    offset.value = event.position.coordinates.minus(coords)
+                }
+
+                else itemSelectionState.clearGrabbing()
+                onClick(event)
+            }
+        }
+
+    val decoratedSelectionChange: suspend CoroutineScope.() -> Unit =
+        remember (itemSelectionState, onSelectionChange, offset) {
+            {
+                if (itemSelectionState.grabbed) {
+                    launch {
+                        pointerEvents.dragFlow.collect { deltaPosition ->
+                            val newCoordinates = deltaPosition.current.coordinates.plus(offset.value)
+                            coordsSetter(newCoordinates.wrapLongitude())
+                        }
+                    }
+                }
+
+                onSelectionChange()
+            }
+        }
+
+    Marker(
+        coords,
+        itemSelectionState,
+        anchoring,
+        wrapLongitude,
+        onHover,
+        decoratedOnClick,
+        onShortPress,
+        onLongPress,
+        decoratedSelectionChange,
+        contents
+    )
 }
