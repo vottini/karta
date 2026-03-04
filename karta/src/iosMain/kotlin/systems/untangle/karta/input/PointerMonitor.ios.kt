@@ -1,13 +1,17 @@
 package systems.untangle.karta.input
 
-import kotlinx.coroutines.CoroutineScope
-import kotlin.time.Duration.Companion.milliseconds
-import kotlinx.coroutines.flow.SharedFlow
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeSource
 
-class AndroidPointerMonitor(
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.SharedFlow
+
+import androidx.compose.ui.input.pointer.isPrimaryPressed
+
+class iOSPointerMonitor(
     inputButtonFlow: SharedFlow <AugmentedPointerEvent>,
-    rawMoveFlow: SharedFlow<PointerPosition?>,
+    rawMoveFlow: SharedFlow <PointerPosition?>,
     longPressDuration: Duration = 500.milliseconds
 ) : PointerMonitor(inputButtonFlow, rawMoveFlow, longPressDuration) {
 
@@ -23,7 +27,7 @@ actual fun getPlatformSpecificPointerMonitor(
     inputButtonFlow: SharedFlow<AugmentedPointerEvent>,
     rawMoveFlow: SharedFlow<PointerPosition?>,
     longPressDuration: Duration
-): PointerMonitor = AndroidPointerMonitor(
+): PointerMonitor = iOSPointerMonitor(
     inputButtonFlow,
     rawMoveFlow,
     longPressDuration
