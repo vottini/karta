@@ -20,6 +20,7 @@ coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref 
 slf4f = { group = "org.slf4j", name = "slf4j-android", version.ref = "slf4j" }
 ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
 ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
+ktor-client-java = { module = "io.ktor:ktor-client-java", version.ref = "ktor" }
 
 [plugins]
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
