@@ -18,15 +18,11 @@ class AndroidPointerMonitor(
         augmentedEvent: AugmentedPointerEvent
     ) {
         val (event, position) = augmentedEvent
-        val current = event.buttons
+        val inputChange = event.changes.first()
 
 
-        lastButtonState?.let { previous ->
-            //  println("process current ${current.} , previous:  ${previous.isPrimaryPressed}")
-            //  if (current.isPrimaryPressed != previous.isPrimaryPressed) {
-            //    println("clicked")
-
-            if (!current.isPrimaryPressed) {
+        lastButtonState?.let { previous -> 
+            if (inputChange.pressed) {
                 clickStart = TimeSource.Monotonic.markNow()
                 checkLongPress(coroutineScope, position)
                 lastPosition = position
@@ -59,14 +55,12 @@ class AndroidPointerMonitor(
 
             }
             //  }
-        } ?: run {
-            println("clicked 22")
-            // if (current.isPrimaryPressed) {
+        } ?: run {          
+             if (inputChange.pressed) {
             clickStart = TimeSource.Monotonic.markNow()
             checkLongPress(coroutineScope, position)
             lastPosition = position
-            clicked = true
-            println("clicked 22")
+            clicked = true           
             _clickFlow.emit(
                 ButtonEvent(
                     PointerButton.LEFT,
@@ -74,7 +68,7 @@ class AndroidPointerMonitor(
                     position
                 )
             )
-            // }
+             }
         }
 
         lastButtonState = event.buttons
