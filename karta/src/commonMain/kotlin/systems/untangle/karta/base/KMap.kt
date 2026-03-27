@@ -1,5 +1,7 @@
 package systems.untangle.karta.base
 
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import kotlin.math.sign
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -217,6 +219,7 @@ fun KMap(
     var leftPressed by remember { mutableStateOf(false) }
     var draggingAvailable by remember { mutableStateOf(true) }
     var pressAvailable by remember { mutableStateOf(true) }
+    var ff by remember { mutableStateOf(1.0) }
 
     LaunchedEffect(pointerMonitor, interactive) {
         if (!interactive) return@LaunchedEffect
@@ -287,73 +290,90 @@ fun KMap(
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
-                        val change = event.changes.first()
-                        val position = change.position
+                        if(event.changes.size<2){
+                            val change = event.changes.first()
+                            val position = change.position
+                            val offsets = DoubleOffset(
+                                ((position.x.px - viewSize.halfWidth) / kartaTileSize).value.toDouble(),
+                                ((position.y.px - viewSize.halfHeight) / kartaTileSize).value.toDouble()
+                            )
 
-                        val offsets = DoubleOffset(
-                            ((position.x.px - viewSize.halfWidth)  / kartaTileSize).value.toDouble(),
-                            ((position.y.px - viewSize.halfHeight) / kartaTileSize).value.toDouble()
-                        )
+                            val eventOffset = center.add(offsets)
+                            val wrappedCoordinates = convertToLatLong(zoom.level, eventOffset)
+                                .wrapLongitude()
 
-                        val eventOffset = center.add(offsets)
-                        val wrappedCoordinates = convertToLatLong(zoom.level, eventOffset)
-                            .wrapLongitude()
+                            when (event.type) {
+                                PointerEventType.Press ,
+                                PointerEventType.Release -> {
+                                    rawButtonFlow.tryEmit(
+                                        AugmentedPointerEvent(
+                                            event,
+                                            PointerPosition(
+                                                wrappedCoordinates,
+                                                position
+                                            )
+                                        )
+                                    )
+                                    ff = 1.0
+                                }
 
-                        when (event.type) {
-                            PointerEventType.Press,
-                            PointerEventType.Release ->
-                                rawButtonFlow.tryEmit(
-                                    AugmentedPointerEvent(event,
+                                PointerEventType.Enter,
+                                PointerEventType.Move -> {
+                                    cursor = wrappedCoordinates
+                                    rawMoveFlow.tryEmit(
                                         PointerPosition(
                                             wrappedCoordinates,
                                             position
                                         )
                                     )
-                                )
+                                }
 
-                            PointerEventType.Enter,
-                            PointerEventType.Move -> {
-                                cursor = wrappedCoordinates
-                                rawMoveFlow.tryEmit(
-                                    PointerPosition(
-                                        wrappedCoordinates,
-                                        position
-                                    )
-                                )
-                            }
+                                PointerEventType.Exit -> {
+                                    cursor = null
+                                }
 
-                            PointerEventType.Exit -> {
-                                cursor = null
-                            }
+                                PointerEventType.Scroll -> {
+                                    val value = change.scrollDelta.y.toInt().sign
+                                    val action = if (value < 0) ZOOM_INCREMENT else ZOOM_DECREMENT
 
-                            PointerEventType.Scroll -> {
-                                val value = change.scrollDelta.y.toInt().sign
-                                val action = if (value < 0) ZOOM_INCREMENT else ZOOM_DECREMENT
+                                    // the cursor should stay in the
+                                    // same place when changing the zoom
 
-                                // the cursor should stay in the
-                                // same place when changing the zoom
-
-                                when (action) {
-                                    ZOOM_INCREMENT -> {
-                                        if (zoomSpecs.incrementable()) {
-                                            zoomSpecs = zoomSpecs.increment()
-                                            center = eventOffset.scale(2.0).minus(offsets)
+                                    when (action) {
+                                        ZOOM_INCREMENT -> {
+                                            if (zoomSpecs.incrementable()) {
+                                                zoomSpecs = zoomSpecs.increment()
+                                                center = eventOffset.scale(2.0).minus(offsets)
+                                            }
                                         }
-                                    }
 
-                                    ZOOM_DECREMENT -> {
-                                        if (zoomSpecs.decrementable()) {
-                                            zoomSpecs = zoomSpecs.decrement()
-                                            center = eventOffset.scale(0.5).minus(offsets)
+                                        ZOOM_DECREMENT -> {
+                                            if (zoomSpecs.decrementable()) {
+                                                zoomSpecs = zoomSpecs.decrement()
+                                                center = eventOffset.scale(0.5).minus(offsets)
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-
                     }
                 }
             }
+            .transformable(
+                lockRotationOnZoomPan = true,
+                state = rememberTransformableState { zoomChange, offsetChange, rotationChange ->
+                    val zoomSpeed = 1.5
+                    ff *= zoomChange
+                    if (ff > zoomSpeed){
+                        zoom.increment()
+                        ff=1.0
+                    }
+                    if (ff < (1.0/zoomSpeed)) {
+                        zoom.decrement()
+                        ff=1.0
+                    }
+                })
     ) {
         val horizontalTiles = remember(viewSize) { ((viewSize.width / kartaTileSize).value.toInt() / 2) + 1 }
         val verticalTiles = remember(viewSize) { ((viewSize.height / kartaTileSize).value.toInt() / 2) + 1 }
