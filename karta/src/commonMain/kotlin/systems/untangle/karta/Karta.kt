@@ -21,6 +21,7 @@ import systems.untangle.karta.network.TileServer
 @Composable
 fun Karta(
     tileServer: TileServer,
+    tileLayerServers: List<TileServer>,
     interactive: Boolean = true,
     initialCoords: Coordinates,
     initialZoom: Int = 14,
@@ -52,6 +53,7 @@ fun Karta(
         nullableViewSize?.let { viewSize ->
             KMap(
                 tileServer,
+                tileLayerServers,
                 initialZoom,
                 initialCoords,
                 viewSize,

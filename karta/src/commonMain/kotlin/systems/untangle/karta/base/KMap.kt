@@ -109,6 +109,7 @@ import kotlin.math.pow
 @Composable
 fun KMap(
     tileServer: TileServer,
+    tileLayerServers: List<TileServer>,
     initialZoom: Int,
     initialCoords: Coordinates,
     viewSize: PxSize,
@@ -397,6 +398,18 @@ fun KMap(
                     viewSize,
                     tileServer,
                     maxZoomIndex)
+
+                tileLayerServers.map {tileLayerServer ->
+                    Tile(
+                        zoom.level,
+                        resultingX,
+                        resultingY,
+                        center,
+                        viewSize,
+                        tileLayerServer,
+                        maxZoomIndex
+                    )
+                }
             }
         }
     }
