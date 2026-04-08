@@ -61,12 +61,14 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(compose.preview)
             implementation(libs.ktor.client.android)
+            implementation(libs.ktor.client.okhttp)
         }
 
         getByName("desktopMain").dependencies {
             implementation(compose.desktop.currentOs)
             implementation(libs.kotlinx.coroutines.swing)
             implementation(libs.ktor.client.java)
+            implementation(libs.ktor.client.okhttp)
         }
 
         iosMain.dependencies {
