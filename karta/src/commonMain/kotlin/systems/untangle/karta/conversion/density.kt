@@ -24,8 +24,8 @@ fun Px.toDp(density: Float) = Dp(this.value / density)
 
 @Composable
 fun IntOffset.correctedPx() = IntOffset(
-    this@correctedPx.x,//.dp.dpToPx(),
-    this@correctedPx.y//.dp.dpToPx()
+    this@correctedPx.x.dp.dpToPx(),
+    this@correctedPx.y.dp.dpToPx()
 )
 
 fun PxSize.toDp(density: Float) : DpSize = DpSize(

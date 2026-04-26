@@ -56,7 +56,7 @@ fun Geolocated(
     }
 
     coordsOffsets.forEach { coords ->
-        content(coords.correctedPx())
+        content(coords)
     }
 }
 
