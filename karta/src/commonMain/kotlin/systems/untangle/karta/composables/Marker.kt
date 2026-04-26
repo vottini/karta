@@ -75,6 +75,35 @@ fun Marker(
             )
         }
 
+        var canRelease by remember { mutableStateOf(false) }
+        LaunchedEffect(pointerEvents, ownExtension) {
+            pointerEvents.clickFlow.collect { ev ->
+                // if (itemSelectionState?.itemId == "home")
+                when (ev.action) {
+                    ButtonAction.PRESS -> {
+                        //val newHoverState = ev.position.isInside(ownExtension)
+                        if (ev.position.isInside(ownExtension)) {
+                            isHovered = true
+                            onHover(true)
+                            // onClick(ev)
+                        }
+                    }
+
+                    ButtonAction.RELEASE -> {
+                        if (canRelease) {
+                            isHovered = false
+                            onHover(false)
+                            canRelease = false
+                        } else {
+                            canRelease = true
+                        }
+                    }
+
+                }
+
+            }
+        }
+
         LaunchedEffect(pointerEvents, isHovered, ownExtension, onHover) {
             pointerEvents.moveFlow.collect { pointerPosition ->
                 val newHoverState = pointerPosition?.isInside(ownExtension) ?: false
@@ -139,7 +168,7 @@ fun Marker(
         }
 
     val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
-        remember (itemSelectionState, onClick) {
+        remember(itemSelectionState, onClick) {
             { buttonEvent ->
                 itemSelectionState.setClicked()
                 onClick(buttonEvent)
@@ -147,7 +176,7 @@ fun Marker(
         }
 
     val decoratedOnShortPress: suspend CoroutineScope.(PointerPosition) -> Unit =
-        remember (itemSelectionState, onShortPress) {
+        remember(itemSelectionState, onShortPress) {
             { position ->
                 if (!itemSelectionState.selected) itemSelectionState.setSelected()
                 onShortPress(position)
@@ -155,7 +184,7 @@ fun Marker(
         }
 
     val decoratedOnLongPress: suspend CoroutineScope.(PointerPosition) -> Unit =
-        remember (itemSelectionState, onLongPress) {
+        remember(itemSelectionState, onLongPress) {
             { position ->
                 if (!itemSelectionState.selected) itemSelectionState.setSelected()
                 onLongPress(position)
@@ -192,24 +221,23 @@ fun MovableMarker(
     val offset = remember { mutableStateOf(Coordinates(0.0, 0.0)) }
 
     val decoratedOnClick: suspend CoroutineScope.(ButtonEvent) -> Unit =
-        remember (itemSelectionState, onClick) {
+        remember(itemSelectionState, onClick) {
             { event ->
                 if (event.action == ButtonAction.PRESS) {
                     offset.value = event.position.coordinates.minus(coords)
-                }
-
-                else itemSelectionState.clearGrabbing()
+                } else itemSelectionState.clearGrabbing()
                 onClick(event)
             }
         }
 
     val decoratedSelectionChange: suspend CoroutineScope.() -> Unit =
-        remember (itemSelectionState, onSelectionChange, offset) {
+        remember(itemSelectionState, onSelectionChange, offset) {
             {
                 if (itemSelectionState.grabbed) {
                     launch {
                         pointerEvents.dragFlow.collect { deltaPosition ->
-                            val newCoordinates = deltaPosition.current.coordinates.plus(offset.value)
+                            val newCoordinates =
+                                deltaPosition.current.coordinates.plus(offset.value)
                             coordsSetter(newCoordinates.wrapLongitude())
                         }
                     }

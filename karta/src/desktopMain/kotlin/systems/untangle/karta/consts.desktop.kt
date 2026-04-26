@@ -4,5 +4,8 @@ import systems.untangle.karta.data.Px
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.px
 
-expect val kartaTileSize : Px //= 256.px.times(2)
-expect val itemsSize : PxSize //= PxSize(30.px.times(2), 48.px.times(2))
+
+actual val kartaTileSize: Px
+    get() = 256.px
+actual val itemsSize: PxSize
+    get() = PxSize(30.px, 48.px)

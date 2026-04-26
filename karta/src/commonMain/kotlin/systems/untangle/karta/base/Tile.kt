@@ -27,12 +27,16 @@ import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.TileServer
 
 import androidx.compose.ui.platform.LocalDensity
+import coil3.ImageLoader
+import coil3.network.NetworkFetcher
+import coil3.network.ktor3.asNetworkClient
 import systems.untangle.karta.conversion.toDp
 import systems.untangle.karta.conversion.toPx
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.plus
 
 import org.jetbrains.compose.resources.painterResource
+import systems.untangle.karta.network.HttpClientProvider
 import systems.untangle.karta.resources.Res
 import systems.untangle.karta.resources.grid
 
@@ -78,6 +82,22 @@ fun Tile(
         xOffset.value.toInt(),
         yOffset.value.toInt())
 
+
+
+    val unsafeClient = HttpClientProvider().getHttpClient()
+
+    val imageLoader = ImageLoader.Builder(LocalPlatformContext.current)
+        .components {
+            add(
+                NetworkFetcher.Factory(
+                    networkClient = { unsafeClient.asNetworkClient() }
+                )
+            )
+        }
+        .build()
+
+
+
     Box(modifier = Modifier
         .offset { offset }
         .requiredSize(tileSize)
@@ -90,7 +110,8 @@ fun Tile(
             model = ImageRequest.Builder(LocalPlatformContext.current)
                 .data(formattedUrl)
                 .httpHeaders(headers.build())
-                .build()
+                .build(),
+            imageLoader = imageLoader,
         )
     }
 
