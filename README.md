@@ -171,6 +171,14 @@ Polyline(
     strokeWidth = 4f
 )
 
+// Dashed polyline
+Polyline(
+    coordsList = route,
+    strokeColor = Color.Blue,
+    strokeWidth = 3f,
+    pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 10f), 0f)
+)
+
 // Filled polygon
 Polyline(
     coordsList = polygonCoords,

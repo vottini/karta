@@ -9,6 +9,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.Path
@@ -50,6 +51,9 @@ fun IntOffset.toOffset() = Offset(
  * @param fillAlpha Opacity of [fillColor], in the `[0, 1]` range.
  * @param closed When `true`, a closing segment is drawn from the last vertex back to the first,
  *   forming a polygon. Has no effect when [coordsList] has fewer than three points.
+ * @param pathEffect Optional [PathEffect] applied to the stroke, e.g.
+ *   `PathEffect.dashPathEffect(floatArrayOf(20f, 10f), 0f)` for a dashed line.
+ *   Pass `null` (default) for a solid stroke.
  */
 @Composable
 fun Polyline(
@@ -58,7 +62,8 @@ fun Polyline(
     strokeWidth: Float = 1.0f,
     fillColor: Color? = null,
     fillAlpha: Float = 1f,
-    closed: Boolean = false
+    closed: Boolean = false,
+    pathEffect: PathEffect? = null
 ) {
     if (coordsList.isEmpty()) {
         return
@@ -136,7 +141,7 @@ fun Polyline(
         drawPath(
             path = path,
             color = strokeColor,
-            style = Stroke(strokeWidth)
+            style = Stroke(width = strokeWidth, pathEffect = pathEffect)
         )
     }
 }
@@ -157,6 +162,8 @@ fun Polyline(
  * @param fillColor Fill color for the enclosed area. Pass `null` for no fill.
  * @param fillAlpha Opacity of [fillColor].
  * @param closed When `true`, closes the polygon by connecting the last vertex to the first.
+ * @param pathEffect Optional [PathEffect] applied to the stroke (e.g. dashes). Pass `null`
+ *   (default) for a solid stroke.
  * @param edgeContents Composable rendered for each vertex handle. Receives [ItemSelectionState]
  *   so the handle can change appearance on hover. Defaults to a green dot that turns blue on hover.
  */
@@ -169,6 +176,7 @@ fun EditablePolyline(
     fillColor: Color? = null,
     fillAlpha: Float = 1f,
     closed: Boolean = false,
+    pathEffect: PathEffect? = null,
     edgeContents: @Composable (ItemSelectionState) -> Unit = { itemState ->
         val resource = if (itemState.hovered) blueDot else greenDot
         Sprite(resource = resource)
@@ -182,7 +190,8 @@ fun EditablePolyline(
         strokeWidth,
         fillColor,
         fillAlpha,
-        closed
+        closed,
+        pathEffect
     )
 
     coordsList.forEachIndexed { index, coords ->
