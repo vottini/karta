@@ -10,6 +10,13 @@ import kotlin.math.ln
 import kotlin.math.atan
 import kotlin.math.sinh
 
+/**
+ * Converts Web Mercator tile coordinates at the given [zoom] level to geographic [Coordinates].
+ *
+ * @param zoom Zoom level (0–19).
+ * @param tileOffset Fractional tile position where `(0, 0)` is the top-left of the world tile.
+ * @return Geographic latitude/longitude.
+ */
 fun convertToLatLong(zoom: Int, tileOffset: DoubleOffset) : Coordinates {
     val numberOfTiles = (1 shl zoom)
     val latRadians = atan(sinh(PI * (1.0 - (2.0 * tileOffset.y / numberOfTiles))))
@@ -19,6 +26,10 @@ fun convertToLatLong(zoom: Int, tileOffset: DoubleOffset) : Coordinates {
     return Coordinates(latitude, longitude)
 }
 
+/**
+ * Normalizes the longitude of this [Coordinates] to the `(-180, 180]` range by adding or
+ * subtracting 360° as needed. The latitude is returned unchanged.
+ */
 fun Coordinates.wrapLongitude(): Coordinates {
     var wrappedLongitude = this.longitude
     while (wrappedLongitude <= -180) wrappedLongitude += 360
@@ -30,6 +41,13 @@ fun Coordinates.wrapLongitude(): Coordinates {
     )
 }
 
+/**
+ * Converts geographic [coordinates] to fractional Web Mercator tile coordinates at [zoom].
+ *
+ * @param zoom Zoom level (0–19).
+ * @param coordinates Geographic latitude/longitude to project.
+ * @return Fractional tile position where `(0, 0)` is the top-left of the world tile.
+ */
 fun convertToTileCoordinates(zoom: Int, coordinates: Coordinates) : DoubleOffset {
     val latitudeRads = (coordinates.latitude / 180.0) * PI
     val secLatitude = 1.0 / cos(latitudeRads)

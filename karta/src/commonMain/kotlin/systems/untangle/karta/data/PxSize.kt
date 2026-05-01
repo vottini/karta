@@ -4,13 +4,17 @@ import androidx.compose.ui.unit.IntOffset
 
 /**
  * Rectangular dimensions in absolute pixel units.
+ *
+ * @property width Horizontal extent in pixels.
+ * @property height Vertical extent in pixels.
  */
-
 data class PxSize(
     val width: Px,
     val height: Px
 ) {
+    /** Half of [width], computed lazily. */
     val halfWidth: Px by lazy { width / 2f }
+    /** Half of [height], computed lazily. */
     val halfHeight: Px by lazy { height / 2f }
 
     override fun equals(other: Any?) : Boolean {

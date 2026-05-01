@@ -5,11 +5,11 @@ import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.TileRegion
 
 /**
- * data class holding the absolute geographical
- * position of an event as well as its tile coordinates
- * offsets from the origin
+ * The geographic and screen-pixel position of a pointer event.
+ *
+ * @property coordinates Geographic location (latitude/longitude) under the pointer.
+ * @property offset Screen-space pixel position relative to the top-left corner of the map.
  */
-
 data class PointerPosition(
     val coordinates: Coordinates,
     val offset: Offset

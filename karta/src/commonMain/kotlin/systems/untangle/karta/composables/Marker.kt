@@ -40,9 +40,25 @@ import systems.untangle.karta.selection.ItemSelectionState
 
 
 /**
+ * An overlay composable that places [contents] at a fixed geographic location on the map.
  *
+ * The marker reacts to pointer events only when the cursor is inside its rendered bounds.
+ * Use [anchoring] to control which point of [contents] aligns with [coords] —
+ * e.g. `DoubleOffset(0.5, 1.0)` pins the bottom-center to the coordinate (typical for pin icons).
+ *
+ * Must be called inside a [systems.untangle.karta.Karta] `content` lambda.
+ *
+ * @param coords Geographic position where the marker is anchored.
+ * @param anchoring Normalized anchor point within the marker bounds, in the `[0, 1]` range on
+ *   each axis. `(0.5, 0.5)` centers the composable; `(0.5, 1.0)` pins the bottom-center.
+ * @param wrapLongitude When `true`, the marker is also rendered at ±360° offsets so it stays
+ *   visible during continuous horizontal panning (world wrapping).
+ * @param onHover Called with `true` when the cursor enters the marker bounds, `false` on exit.
+ * @param onClick Called on every button press or release event while the cursor is inside.
+ * @param onShortPress Called on a quick click (press + release without significant movement).
+ * @param onLongPress Called after the pointer has been held for ~500 ms inside the marker.
+ * @param contents The composable to display at the marker position.
  */
-
 @Composable
 fun Marker(
     coords: Coordinates,
@@ -112,6 +128,24 @@ fun Marker(
     }
 }
 
+/**
+ * Variant of [Marker] that integrates with the selection system.
+ *
+ * Automatically updates [itemSelectionState] on hover, click, short press, and long press, so
+ * the selection state is kept in sync across all markers sharing the same
+ * [systems.untangle.karta.selection.SelectionFlowContext].
+ *
+ * @param coords Geographic position where the marker is anchored.
+ * @param itemSelectionState Per-item selection state obtained from [SelectionItem].
+ * @param anchoring Normalized anchor point within the marker bounds (see [Marker]).
+ * @param wrapLongitude Render at ±360° offsets for world-wrap continuity.
+ * @param onHover Called with `true`/`false` as the cursor enters or leaves the marker.
+ * @param onClick Called on every button event while hovered.
+ * @param onShortPress Called on a quick click.
+ * @param onLongPress Called after a ~500 ms hold.
+ * @param onSelectionChange Called whenever [itemSelectionState] changes.
+ * @param contents The composable to display at the marker position.
+ */
 @Composable
 fun Marker(
     coords: Coordinates,
@@ -174,6 +208,25 @@ fun Marker(
     )
 }
 
+/**
+ * A [Marker] that the user can drag to a new geographic position.
+ *
+ * While the marker is grabbed (clicked and held), drag events are translated into geographic
+ * coordinate updates and forwarded to [coordsSetter]. The caller is responsible for updating
+ * [coords] in response, typically via `mutableStateOf`.
+ *
+ * @param coords Current geographic position of the marker.
+ * @param coordsSetter Called with the updated [Coordinates] on each drag frame.
+ * @param itemSelectionState Per-item selection state from [SelectionItem]; tracks grab state.
+ * @param anchoring Normalized anchor point within the marker bounds (see [Marker]).
+ * @param wrapLongitude Render at ±360° offsets for world-wrap continuity.
+ * @param onHover Called with `true`/`false` as the cursor enters or leaves the marker.
+ * @param onClick Called on every button event while hovered.
+ * @param onShortPress Called on a quick click.
+ * @param onLongPress Called after a ~500 ms hold.
+ * @param onSelectionChange Called whenever [itemSelectionState] changes.
+ * @param contents The composable to display at the marker position.
+ */
 @Composable
 fun MovableMarker(
     coords: Coordinates,

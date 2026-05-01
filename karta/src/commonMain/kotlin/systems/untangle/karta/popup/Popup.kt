@@ -30,6 +30,19 @@ import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.selection.SelectionItem
 import systems.untangle.karta.selection.rememberSelectionContext
 
+/**
+ * Renders a floating context menu at the geographic position stored in [context].
+ *
+ * The menu is invisible when [PopupContext.hasContents] is `false`. Each menu item highlights
+ * on hover and dismisses the popup automatically after being clicked.
+ *
+ * Typically placed inside a [systems.untangle.karta.Karta] `content` lambda alongside a
+ * [systems.untangle.karta.Karta] `onLongPress` handler that calls [PopupContext.show].
+ *
+ * @param context State holder created by [rememberPopupContext]. Controls visibility and items.
+ * @param background Background color of the popup card and the hover highlight text.
+ * @param color Text color of menu items and the hover highlight background.
+ */
 @Composable
 fun Popup(
     context: PopupContext,

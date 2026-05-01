@@ -35,6 +35,22 @@ fun IntOffset.toOffset() = Offset(
     this.y.toFloat()
 )
 
+/**
+ * Draws a polyline (or filled polygon) through a list of geographic coordinates.
+ *
+ * The polyline is culled when its bounding box does not intersect the current viewport, so
+ * only visible segments incur draw cost.
+ *
+ * Must be called inside a [systems.untangle.karta.Karta] `content` lambda.
+ *
+ * @param coordsList Ordered list of geographic vertices. Empty lists are a no-op.
+ * @param strokeColor Color of the line stroke.
+ * @param strokeWidth Stroke width in pixels.
+ * @param fillColor Fill color for the enclosed area. Pass `null` for an open, unfilled line.
+ * @param fillAlpha Opacity of [fillColor], in the `[0, 1]` range.
+ * @param closed When `true`, a closing segment is drawn from the last vertex back to the first,
+ *   forming a polygon. Has no effect when [coordsList] has fewer than three points.
+ */
 @Composable
 fun Polyline(
     coordsList: List <Coordinates>,
@@ -125,6 +141,25 @@ fun Polyline(
     }
 }
 
+/**
+ * A [Polyline] whose vertices can be repositioned by dragging.
+ *
+ * Each vertex is rendered as a [MovableMarker]. When a vertex is dragged, [coordsSetter] is
+ * called with the vertex index and its new [Coordinates]. The caller must update [coordsList]
+ * in response (typically via `mutableStateOf`).
+ *
+ * Must be called inside a [systems.untangle.karta.Karta] `content` lambda.
+ *
+ * @param coordsList Ordered list of geographic vertices.
+ * @param coordsSetter Called with `(index, newCoords)` on each drag frame for a vertex.
+ * @param strokeColor Color of the line stroke.
+ * @param strokeWidth Stroke width in pixels.
+ * @param fillColor Fill color for the enclosed area. Pass `null` for no fill.
+ * @param fillAlpha Opacity of [fillColor].
+ * @param closed When `true`, closes the polygon by connecting the last vertex to the first.
+ * @param edgeContents Composable rendered for each vertex handle. Receives [ItemSelectionState]
+ *   so the handle can change appearance on hover. Defaults to a green dot that turns blue on hover.
+ */
 @Composable
 fun EditablePolyline(
     coordsList: List <Coordinates>,

@@ -15,6 +15,21 @@ import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.conversion.toDp
 import systems.untangle.karta.data.px
 
+/**
+ * Displays a drawable resource as a fixed-size image, optionally constrained to a given size.
+ *
+ * Typically used inside a [Marker] to render a pin icon or any other map symbol.
+ *
+ * When [dimensions] is provided and [keepAspectRatio] is `true`, the image is scaled to fit
+ * within [dimensions] while preserving its intrinsic aspect ratio. When [dimensions] is `null`,
+ * the image is rendered at its intrinsic pixel size.
+ *
+ * @param resource The drawable resource to display (from `Res.drawable.*`).
+ * @param dimensions Maximum bounding box for the image in absolute pixels, or `null` to use the
+ *   resource's intrinsic size.
+ * @param keepAspectRatio When `true` (default), the image is scaled proportionally within
+ *   [dimensions]. When `false`, it is stretched to fill [dimensions] exactly.
+ */
 @Composable
 fun Sprite(
     resource: DrawableResource,

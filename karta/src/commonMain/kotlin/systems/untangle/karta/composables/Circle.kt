@@ -14,6 +14,22 @@ import systems.untangle.karta.data.DistanceUnit
 import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.px
 
+/**
+ * Draws a circle centered on a geographic coordinate.
+ *
+ * The radius can be expressed in screen pixels or in real-world meters; the latter is converted
+ * at the current zoom level using the equirectangular approximation.
+ *
+ * Must be called inside a [systems.untangle.karta.Karta] `content` lambda.
+ *
+ * @param coords Geographic center of the circle.
+ * @param radius Circle radius in the units specified by [radiusUnit].
+ * @param radiusUnit [DistanceUnit.PIXELS] for a fixed screen size,
+ *   [DistanceUnit.METERS] to scale with zoom.
+ * @param borderWidth Outline stroke width in pixels. Set to `0` to suppress the border.
+ * @param borderColor Color of the circle outline.
+ * @param fillColor Interior fill color. Pass `null` for a hollow circle.
+ */
 @Composable
 fun Circle(
     coords: Coordinates,

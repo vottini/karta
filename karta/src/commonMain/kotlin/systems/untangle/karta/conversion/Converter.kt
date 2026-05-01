@@ -15,6 +15,14 @@ import systems.untangle.karta.kartaTileSize
 const val earthRadiusMeters = 6378137.0
 const val radiansToDegrees = 180.0 / PI
 
+/**
+ * Converts between geographic [Coordinates], tile offsets, and screen-pixel [IntOffset]s at a
+ * fixed zoom level and viewport.
+ *
+ * A new instance is created whenever the viewport size, center, or zoom changes. The current
+ * instance is available inside a [systems.untangle.karta.Karta] `content` lambda via
+ * [systems.untangle.karta.base.LocalConverter].
+ */
 class Converter(
     private val viewingBoundingBox: BoundingBox,
     private val viewPxSize: PxSize,
@@ -30,6 +38,10 @@ class Converter(
         )
     }
 
+    /**
+     * Converts geographic [coordinates] to a screen-pixel [IntOffset] relative to the top-left
+     * corner of the map viewport at the current zoom and center.
+     */
     fun convertToOffset(coordinates: Coordinates) : IntOffset {
         val tileCoords = convertToTileCoordinates(zoomLevel, coordinates)
         val offsetFromCenter = tileCoords.minus(center)
@@ -46,6 +58,12 @@ class Converter(
         )
     }
 
+    /**
+     * Returns `true` when [coords] is visible in the current viewport.
+     *
+     * When [extension] is provided, the test uses a box of that size centered on the projected
+     * point instead of the exact coordinate, so elements that overlap the edge are still included.
+     */
     fun insideView(coords: Coordinates, extension: PxSize?) : Boolean {
         if (null != extension) {
             val apothems = extension.div(2).toIntOffset()
@@ -67,6 +85,13 @@ class Converter(
         )
     }
 
+    /**
+     * Converts a real-world distance in meters to screen pixels at the current zoom and latitude,
+     * using the equirectangular approximation.
+     *
+     * @param distanceInMeters Distance in meters to convert.
+     * @return Equivalent distance in screen pixels.
+     */
     fun metersToPixels(distanceInMeters: Float) : Float {
         val angle = distanceInMeters / earthRadiusMeters
         return abs(angle * horizontalPixels * radiansToDegrees).toFloat()
