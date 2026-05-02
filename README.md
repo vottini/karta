@@ -179,13 +179,39 @@ Polyline(
     pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 10f), 0f)
 )
 
-// Filled polygon
+// Solid-filled polygon
 Polyline(
     coordsList = polygonCoords,
     strokeColor = Color.Green,
     strokeWidth = 2f,
-    fillColor = Color.Green,
-    fillAlpha = 0.3f,
+    fillPattern = FillPattern.Solid(Color.Green, alpha = 0.3f),
+    closed = true
+)
+
+// Hatched polygon (diagonal lines)
+Polyline(
+    coordsList = polygonCoords,
+    strokeColor = Color.Blue,
+    strokeWidth = 1f,
+    fillPattern = FillPattern.Hatched(Color.Blue, spacing = 10f, angle = 45f, strokeWidth = 1f),
+    closed = true
+)
+
+// Crosshatched polygon
+Polyline(
+    coordsList = polygonCoords,
+    strokeColor = Color.Red,
+    strokeWidth = 1f,
+    fillPattern = FillPattern.Crossed(Color.Red, spacing = 12f),
+    closed = true
+)
+
+// Dotted polygon
+Polyline(
+    coordsList = polygonCoords,
+    strokeColor = Color.DarkGray,
+    strokeWidth = 1f,
+    fillPattern = FillPattern.Dotted(Color.DarkGray, spacing = 14f, radius = 2f),
     closed = true
 )
 ```
