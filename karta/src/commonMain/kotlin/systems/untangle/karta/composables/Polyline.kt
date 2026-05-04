@@ -216,7 +216,7 @@ fun EditablePolyline(
 
 // Draws parallel lines at [angleDeg] degrees spaced [spacing] pixels apart, covering [bounds].
 // Intended to be called inside a clipPath block.
-private fun DrawScope.drawHatchLines(
+internal fun DrawScope.drawHatchLines(
     bounds: TileRegion,
     color: Color,
     spacing: Float,
@@ -265,7 +265,7 @@ private fun DrawScope.drawHatchLines(
 
 // Draws a staggered dot grid covering [bounds], with odd rows offset by spacing/2.
 // Intended to be called inside a clipPath block.
-private fun DrawScope.drawDottedPattern(
+internal fun DrawScope.drawDottedPattern(
     bounds: TileRegion,
     color: Color,
     spacing: Float,
