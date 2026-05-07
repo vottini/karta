@@ -73,9 +73,7 @@ version = "0.4.1"
 
 mavenPublishing {
     publishToMavenCentral()
-    if (project.hasProperty("release")) {
-        signAllPublications()
-    }
+    signAllPublications()
 
     coordinates(
         group.toString(),
