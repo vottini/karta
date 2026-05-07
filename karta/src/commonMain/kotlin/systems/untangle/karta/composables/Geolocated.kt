@@ -4,7 +4,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.unit.IntOffset
 import systems.untangle.karta.base.LocalConverter
-import systems.untangle.karta.conversion.correctedPx
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.PxSize
 
@@ -79,7 +78,7 @@ fun Geolocated(
     }
 
     coordsOffsets.forEach { coords ->
-        content(coords.correctedPx())
+        content(coords)
     }
 }
 
