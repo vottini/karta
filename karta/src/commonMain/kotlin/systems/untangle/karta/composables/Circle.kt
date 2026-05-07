@@ -5,12 +5,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.offset
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas as GraphicsCanvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import systems.untangle.karta.base.LocalConverter
 import systems.untangle.karta.data.Coordinates
@@ -52,11 +59,36 @@ fun Circle(
     pathEffect: PathEffect? = null
 ) {
     val converter = LocalConverter.current
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
 
     val radiusInPixels = remember(radius, radiusUnit, converter) {
         when (radiusUnit) {
             DistanceUnit.METERS -> converter.metersToPixels(radius)
             DistanceUnit.PIXELS -> radius
+        }
+    }
+
+    // Pre-render non-Solid patterns to a bitmap keyed on the pixel radius so panning reuses it.
+    val patternBitmap = remember(radiusInPixels.toInt(), fillPattern) {
+        if (fillPattern == null || fillPattern is FillPattern.Solid) {
+            null
+        } else {
+            val diameter = (2f * radiusInPixels).toInt().coerceAtLeast(1)
+            val bitmap = ImageBitmap(diameter, diameter)
+            val localBounds = TileRegion(IntOffset(0, 0), IntOffset(diameter, diameter))
+            CanvasDrawScope().draw(density, layoutDirection, GraphicsCanvas(bitmap), Size(diameter.toFloat(), diameter.toFloat())) {
+                when (fillPattern) {
+                    is FillPattern.Hatched -> drawHatchLines(localBounds, fillPattern.color, fillPattern.spacing, fillPattern.angle, fillPattern.strokeWidth)
+                    is FillPattern.Crossed -> {
+                        drawHatchLines(localBounds, fillPattern.color, fillPattern.spacing, fillPattern.angle, fillPattern.strokeWidth)
+                        drawHatchLines(localBounds, fillPattern.color, fillPattern.spacing, fillPattern.angle + 90f, fillPattern.strokeWidth)
+                    }
+                    is FillPattern.Dotted -> drawDottedPattern(localBounds, fillPattern.color, fillPattern.spacing, fillPattern.radius)
+                    is FillPattern.Solid -> {}
+                }
+            }
+            bitmap
         }
     }
 
@@ -72,25 +104,16 @@ fun Circle(
                 val circlePath = Path().apply {
                     addOval(Rect(center, radiusInPixels))
                 }
-                val bounds = TileRegion(
-                    IntOffset((center.x - radiusInPixels).toInt(), (center.y - radiusInPixels).toInt()),
-                    IntOffset((center.x + radiusInPixels).toInt(), (center.y + radiusInPixels).toInt())
-                )
                 when (fillPattern) {
                     is FillPattern.Solid -> drawCircle(
                         color = fillPattern.color,
                         alpha = fillPattern.alpha,
                         radius = radiusInPixels
                     )
-                    is FillPattern.Hatched -> clipPath(circlePath) {
-                        drawHatchLines(bounds, fillPattern.color, fillPattern.spacing, fillPattern.angle, fillPattern.strokeWidth)
-                    }
-                    is FillPattern.Crossed -> clipPath(circlePath) {
-                        drawHatchLines(bounds, fillPattern.color, fillPattern.spacing, fillPattern.angle, fillPattern.strokeWidth)
-                        drawHatchLines(bounds, fillPattern.color, fillPattern.spacing, fillPattern.angle + 90f, fillPattern.strokeWidth)
-                    }
-                    is FillPattern.Dotted -> clipPath(circlePath) {
-                        drawDottedPattern(bounds, fillPattern.color, fillPattern.spacing, fillPattern.radius)
+                    else -> patternBitmap?.let { bitmap ->
+                        clipPath(circlePath) {
+                            drawImage(bitmap, topLeft = Offset.Zero)
+                        }
                     }
                 }
             }

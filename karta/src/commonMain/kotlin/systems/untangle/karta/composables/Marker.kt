@@ -91,7 +91,7 @@ fun Marker(
             )
         }
 
-        LaunchedEffect(pointerEvents, isHovered, ownExtension, onHover) {
+        LaunchedEffect(pointerEvents, ownExtension, onHover) {
             pointerEvents.moveFlow.collect { pointerPosition ->
                 val newHoverState = pointerPosition?.isInside(ownExtension) ?: false
                 if (newHoverState != isHovered) {
@@ -166,8 +166,8 @@ fun Marker(
     val decoratedOnHover: suspend CoroutineScope.(Boolean) -> Unit =
         remember(itemSelectionState, onHover) {
             { hoveredNow ->
-                if (hoveredNow && itemSelectionState.noneHovered) itemSelectionState.setHovered()
-                if (itemSelectionState.hovered && !hoveredNow) itemSelectionState.clearHovered()
+                if (hoveredNow) itemSelectionState.setHovered()
+                else itemSelectionState.clearHovered()
                 onHover(hoveredNow)
             }
         }

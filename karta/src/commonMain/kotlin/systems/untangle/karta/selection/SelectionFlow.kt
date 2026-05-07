@@ -4,6 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Shared context that coordinates hover and selection state across a group of [SelectionItem]s.
@@ -13,10 +14,12 @@ import kotlinx.coroutines.flow.SharedFlow
  *
  * @property selectionFlow Emits the latest [SelectionState] whenever it changes.
  * @property selectionEmitter Suspend function to push a new [SelectionState] into the flow.
+ * @property selectionUpdater Applies an atomic state transform (used for safe conditional clears).
  */
 data class SelectionFlowContext (
     val selectionFlow: SharedFlow<SelectionState>,
-    val selectionEmitter: suspend (SelectionState) -> Unit
+    val selectionEmitter: suspend (SelectionState) -> Unit,
+    val selectionUpdater: ((SelectionState) -> SelectionState) -> Unit
 ) {
     /** Resets hover, selection, and grabbing state to the default (nothing selected). */
     suspend fun clearSelection() = selectionEmitter.invoke(SelectionState())
@@ -29,12 +32,12 @@ data class SelectionFlowContext (
 @Composable
 fun rememberSelectionContext(): SelectionFlowContext {
     val mutableFlow = remember { MutableStateFlow(SelectionState()) }
-    val emitter : suspend (SelectionState) -> Unit = remember(mutableFlow) {
+    val emitter: suspend (SelectionState) -> Unit = remember(mutableFlow) {
         { newState -> mutableFlow.emit(newState) }
     }
+    val updater: ((SelectionState) -> SelectionState) -> Unit = remember(mutableFlow) {
+        { transform -> mutableFlow.update(transform) }
+    }
 
-    return SelectionFlowContext(
-        mutableFlow,
-        emitter
-    )
+    return SelectionFlowContext(mutableFlow, emitter, updater)
 }

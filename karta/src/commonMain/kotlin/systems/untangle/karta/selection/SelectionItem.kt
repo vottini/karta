@@ -20,6 +20,7 @@ const val emptySelection = ""
 data class ItemSelectionState(
     private val currentState: SelectionState,
     private val emitter: suspend (SelectionState) -> Unit,
+    private val updater: ((SelectionState) -> SelectionState) -> Unit,
     val itemId: String
 ) {
     /** `true` when this item's ID matches the hovered ID in the shared state. */
@@ -38,8 +39,14 @@ data class ItemSelectionState(
         currentSelection = itemId,
         grabbing = true))
 
-    /** Clears the hover state (no item is hovered). */
-    suspend fun clearHovered() = emitter(currentState.copy(currentHover = emptySelection))
+    /**
+     * Atomically clears hover only if this item is still the hovered one.
+     * Uses the live state (not the snapshot) to avoid races when the mouse
+     * moves quickly between items.
+     */
+    fun clearHovered() = updater { state ->
+        if (state.currentHover == itemId) state.copy(currentHover = emptySelection) else state
+    }
     /** Clears the selection state (no item is selected). */
     suspend fun clearSelected() = emitter(currentState.copy(currentSelection = emptySelection))
     /** Clears the grabbing flag without changing hover or selection. */
@@ -77,15 +84,17 @@ fun SelectionItem(
         mutableStateOf(ItemSelectionState(
             SelectionState(),
             selectionContext.selectionEmitter,
+            selectionContext.selectionUpdater,
             itemId))
     }
 
     LaunchedEffect(selectionContext, itemId) {
-        val (flow, emitter) = selectionContext
+        val (flow, emitter, updater) = selectionContext
         flow.collect { currentState ->
             itemState = ItemSelectionState(
                 currentState,
                 emitter,
+                updater,
                 itemId
             )
         }

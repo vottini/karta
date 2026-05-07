@@ -324,6 +324,7 @@ fun KMap(
 
                             PointerEventType.Exit -> {
                                 cursor = null
+                                rawMoveFlow.tryEmit(null)
                             }
 
                             PointerEventType.Scroll -> {
@@ -360,24 +361,27 @@ fun KMap(
         val maxZoomIndex = remember(zoom) { 2.toFloat().pow(zoom.level).toInt() }
         val validYRange = remember(maxZoomIndex) { 0 .. maxZoomIndex - 1 }
 
-        for (y in -verticalTiles..verticalTiles) {
+        val tileOffsets = remember(horizontalTiles, verticalTiles) {
+            buildList {
+                for (y in -verticalTiles..verticalTiles)
+                    for (x in -horizontalTiles..horizontalTiles)
+                        add(x to y)
+            }.sortedBy { (x, y) -> x * x + y * y }
+        }
+
+        for ((x, y) in tileOffsets) {
             val resultingY = center.y.toInt() + y
-            if (resultingY !in validYRange) {
-                continue
-            }
+            if (resultingY !in validYRange) continue
+            val resultingX = center.x.toInt() + x
 
-            for (x in -horizontalTiles..horizontalTiles) {
-                val resultingX = center.x.toInt() + x
-
-                Tile(
-                    zoom.level,
-                    resultingX,
-                    resultingY,
-                    center,
-                    viewSize,
-                    tileServer,
-                    maxZoomIndex)
-            }
+            Tile(
+                zoom.level,
+                resultingX,
+                resultingY,
+                center,
+                viewSize,
+                tileServer,
+                maxZoomIndex)
         }
     }
 

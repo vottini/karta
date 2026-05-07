@@ -13,16 +13,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Canvas as GraphicsCanvas
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.CanvasDrawScope
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Fill
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.graphics.Path
 
 import systems.untangle.karta.base.LocalConverter
+import systems.untangle.karta.base.LocalZoom
 import systems.untangle.karta.data.Coordinates
 import systems.untangle.karta.data.FillPattern
 import systems.untangle.karta.data.TileRegion
@@ -77,6 +85,10 @@ fun Polyline(
     }
 
     val converter = LocalConverter.current
+    val zoom = LocalZoom.current
+    val density = LocalDensity.current
+    val layoutDirection = LocalLayoutDirection.current
+
     val offsets = remember(coordsList, converter) {
         coordsList.map { coords ->
             converter.convertToOffset(coords).toOffset()
@@ -116,6 +128,30 @@ fun Polyline(
         TileRegion(IntOffset(xMin, yMin), IntOffset(xMax, yMax))
     }
 
+    // Pre-render non-Solid patterns to a bitmap keyed on zoom + coords so panning reuses it.
+    val patternBitmap = remember(zoom.level, coordsList, fillPattern) {
+        if (fillPattern == null || fillPattern is FillPattern.Solid) {
+            null
+        } else {
+            val w = (polylineBoundaries.bottomRight.x - polylineBoundaries.topLeft.x).coerceAtLeast(1)
+            val h = (polylineBoundaries.bottomRight.y - polylineBoundaries.topLeft.y).coerceAtLeast(1)
+            val bitmap = ImageBitmap(w, h)
+            val localBounds = TileRegion(IntOffset(0, 0), IntOffset(w, h))
+            CanvasDrawScope().draw(density, layoutDirection, GraphicsCanvas(bitmap), Size(w.toFloat(), h.toFloat())) {
+                when (fillPattern) {
+                    is FillPattern.Hatched -> drawHatchLines(localBounds, fillPattern.color, fillPattern.spacing, fillPattern.angle, fillPattern.strokeWidth)
+                    is FillPattern.Crossed -> {
+                        drawHatchLines(localBounds, fillPattern.color, fillPattern.spacing, fillPattern.angle, fillPattern.strokeWidth)
+                        drawHatchLines(localBounds, fillPattern.color, fillPattern.spacing, fillPattern.angle + 90f, fillPattern.strokeWidth)
+                    }
+                    is FillPattern.Dotted -> drawDottedPattern(localBounds, fillPattern.color, fillPattern.spacing, fillPattern.radius)
+                    is FillPattern.Solid -> {}
+                }
+            }
+            bitmap
+        }
+    }
+
     if (!converter.tileRegion.intersects(polylineBoundaries)) {
         return
     }
@@ -129,15 +165,12 @@ fun Polyline(
                     alpha = fillPattern.alpha,
                     style = Fill
                 )
-                is FillPattern.Hatched -> clipPath(path) {
-                    drawHatchLines(polylineBoundaries, fillPattern.color, fillPattern.spacing, fillPattern.angle, fillPattern.strokeWidth)
-                }
-                is FillPattern.Crossed -> clipPath(path) {
-                    drawHatchLines(polylineBoundaries, fillPattern.color, fillPattern.spacing, fillPattern.angle, fillPattern.strokeWidth)
-                    drawHatchLines(polylineBoundaries, fillPattern.color, fillPattern.spacing, fillPattern.angle + 90f, fillPattern.strokeWidth)
-                }
-                is FillPattern.Dotted -> clipPath(path) {
-                    drawDottedPattern(polylineBoundaries, fillPattern.color, fillPattern.spacing, fillPattern.radius)
+                else -> patternBitmap?.let { bitmap ->
+                    val xMin = polylineBoundaries.topLeft.x.toFloat()
+                    val yMin = polylineBoundaries.topLeft.y.toFloat()
+                    clipPath(path) {
+                        drawImage(bitmap, topLeft = Offset(xMin, yMin))
+                    }
                 }
             }
         }
@@ -249,18 +282,16 @@ internal fun DrawScope.drawHatchLines(
     val tMin = minOf(t0, t1, t2, t3)
     val tMax = maxOf(t0, t1, t2, t3)
 
+    val linePath = Path()
     var t = floor((tMin / spacing).toDouble()).toFloat() * spacing
     while (t <= tMax) {
         val ox = cx + t * px
         val oy = cy + t * py
-        drawLine(
-            color = color,
-            start = Offset(ox - halfDiag * cosA, oy - halfDiag * sinA),
-            end = Offset(ox + halfDiag * cosA, oy + halfDiag * sinA),
-            strokeWidth = strokeWidth
-        )
+        linePath.moveTo(ox - halfDiag * cosA, oy - halfDiag * sinA)
+        linePath.lineTo(ox + halfDiag * cosA, oy + halfDiag * sinA)
         t += spacing
     }
+    drawPath(linePath, color, style = Stroke(width = strokeWidth))
 }
 
 // Draws a staggered dot grid covering [bounds], with odd rows offset by spacing/2.
@@ -276,16 +307,18 @@ internal fun DrawScope.drawDottedPattern(
     val xMax = bounds.bottomRight.x.toFloat()
     val yMax = bounds.bottomRight.y.toFloat()
 
+    val dotPath = Path()
     var row = 0
     var y = yMin
     while (y <= yMax + radius) {
         val xOffset = if (row % 2 == 0) 0f else spacing / 2f
         var x = xMin + xOffset
         while (x <= xMax + radius) {
-            drawCircle(color = color, radius = radius, center = Offset(x, y))
+            dotPath.addOval(Rect(center = Offset(x, y), radius = radius))
             x += spacing
         }
         y += spacing
         row++
     }
+    drawPath(dotPath, color, style = Fill)
 }
