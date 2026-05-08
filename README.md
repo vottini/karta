@@ -2,7 +2,9 @@
 
 A tile map component in pure Compose Multiplatform — no native map SDKs required.
 
-Karta renders interactive slippy maps (pan, zoom, overlays) using any XYZ tile server, built entirely with Kotlin and Compose. Supports **Android** and **Desktop (JVM)**.
+Karta renders interactive slippy maps (pan, zoom, overlays) using any XYZ tile server, built entirely with Kotlin and Compose. Supports **Android** and **Desktop (JVM)**. Tiles are fetched and cached transparently via [Coil](https://github.com/coil-kt/coil), so network requests, disk caching, and memory management are handled automatically with no extra configuration.
+
+A working sample application is available at **[github.com/vottini/karta-sample](https://github.com/vottini/karta-sample)**.
 
 ---
 
@@ -282,11 +284,7 @@ Karta(
         )
     }
 ) {
-    Popup(
-        context = popupContext,
-        background = Color.White,
-        color = Color.Black
-    )
+    Popup(context = popupContext)
 }
 ```
 
