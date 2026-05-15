@@ -154,11 +154,11 @@ fun KMap(
     LaunchedEffect(viewFlow) {
         viewFlow?.collect { spec ->
             if (null != spec.zoom) {
-                zoomSpecs = ZoomSpecs(
-                    spec.zoom,
-                    minZoom,
-                    maxZoom
-                )
+                val oldZoom = zoomSpecs.value
+                zoomSpecs = ZoomSpecs(spec.zoom, minZoom, maxZoom)
+                if (spec.centerCoordinates == null) {
+                    center = center.scale(2.0.pow(spec.zoom - oldZoom))
+                }
             }
 
             if (null != spec.centerCoordinates) {
