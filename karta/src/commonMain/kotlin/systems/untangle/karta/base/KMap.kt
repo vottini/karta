@@ -42,7 +42,7 @@ import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.exclusiveListener
 import systems.untangle.karta.input.getPlatformSpecificPointerMonitor
 import systems.untangle.karta.kartaTileSize
-import systems.untangle.karta.network.TileServer
+import systems.untangle.karta.network.TileSource
 import kotlin.math.pow
 
 /*
@@ -106,7 +106,7 @@ import kotlin.math.pow
 
 @Composable
 fun KMap(
-    tileServer: TileServer,
+    tileSource: TileSource,
     initialZoom: Int,
     initialCoords: Coordinates,
     viewSize: PxSize,
@@ -380,7 +380,7 @@ fun KMap(
                 resultingY,
                 center,
                 viewSize,
-                tileServer,
+                tileSource,
                 maxZoomIndex)
         }
     }

@@ -23,7 +23,7 @@ Published to Maven Central. Requires Compose Multiplatform and a `commonMain` or
 
 ```kotlin
 Karta(
-    tileServer = TileServer("https://tile.openstreetmap.org/{zoom}/{x}/{y}.png"),
+    tileSource = TileServer("https://tile.openstreetmap.org/{zoom}/{x}/{y}.png"),
     initialCoords = Coordinates(48.8566, 2.3522), // Paris
     initialZoom = 13
 )
@@ -36,7 +36,7 @@ Karta(
 ```kotlin
 @Composable
 fun Karta(
-    tileServer: TileServer,
+    tileSource: TileSource,
     interactive: Boolean = true,
     initialCoords: Coordinates,
     initialZoom: Int = 14,
@@ -54,7 +54,7 @@ fun Karta(
 
 | Parameter | Description |
 |-----------|-------------|
-| `tileServer` | Tile source with URL template and optional HTTP headers |
+| `tileSource` | Tile source — a [TileServer] or [LocalTileDirectory] |
 | `interactive` | Enable/disable pan and zoom gestures |
 | `initialCoords` | Starting map center as `Coordinates(latitude, longitude)` |
 | `initialZoom` | Starting zoom level |
@@ -67,10 +67,10 @@ fun Karta(
 | `onZoomChange` | Called with the new zoom level after a scroll/pinch |
 | `content` | Composable slot for overlays (markers, polylines, etc.) |
 
-### Tile Server
+### Tile Source
 
 ```kotlin
-// Public tile server
+// Remote tile server
 val osm = TileServer("https://tile.openstreetmap.org/{zoom}/{x}/{y}.png")
 
 // Authenticated tile server
@@ -78,6 +78,10 @@ val private = TileServer(
     tileUrl = "https://api.example.com/tiles/{zoom}/{x}/{y}.png",
     requestHeaders = listOf(Header("Authorization", "Bearer $token"))
 )
+
+// Local directory (e.g. gdal2tiles --xyz output)
+val local = LocalTileDirectory(path = "/data/mytiles")
+val localJpeg = LocalTileDirectory(path = "/data/mytiles", extension = "jpg")
 ```
 
 ---
@@ -297,7 +301,7 @@ Use `viewFlow` to move or zoom the map from outside the composable:
 ```kotlin
 val viewFlow = remember { MutableSharedFlow<ViewSpec>(extraBufferCapacity = 1) }
 
-Karta(tileServer = osm, initialCoords = paris, viewFlow = viewFlow) { /* ... */ }
+Karta(tileSource = osm, initialCoords = paris, viewFlow = viewFlow) { /* ... */ }
 
 // Elsewhere — e.g. in response to a button click:
 scope.launch {

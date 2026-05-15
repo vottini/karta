@@ -24,7 +24,9 @@ import coil3.network.httpHeaders
 
 import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.kartaTileSize
+import systems.untangle.karta.network.LocalTileDirectory
 import systems.untangle.karta.network.TileServer
+import systems.untangle.karta.network.TileSource
 
 import androidx.compose.ui.platform.LocalDensity
 import systems.untangle.karta.conversion.toDp
@@ -49,7 +51,7 @@ fun Tile(
     yIndex: Int,
     center: DoubleOffset,
     viewSize: PxSize,
-    tileServer: TileServer,
+    tileSource: TileSource,
     xModulo: Int,
     displayBoundaries: Boolean = false
 ) {
@@ -57,26 +59,38 @@ fun Tile(
     while (wrappedXIndex >= xModulo) wrappedXIndex -= xModulo
     while (wrappedXIndex < 0) wrappedXIndex += xModulo
 
-    val formattedUrl = remember(tileServer, zoom, xIndex, yIndex) {
-        tileServer.tileUrl
-            .replace("{zoom}", zoom.toString())
-            .replace("{x}", wrappedXIndex.toString())
-            .replace("{y}", yIndex.toString())
-    }
-
     val pixelDensity = LocalDensity.current.density
     val tileSize = kartaTileSize.toDp(pixelDensity)
     val xOffset = viewSize.halfWidth + ((xIndex - center.x) * tileSize.value).dp.toPx(pixelDensity)
     val yOffset = viewSize.halfHeight + ((yIndex - center.y) * tileSize.value).dp.toPx(pixelDensity)
 
-    val headers = NetworkHeaders.Builder()
-    tileServer.requestHeaders.forEach { header ->
-        headers[header.key] = header.value
-    }
-
     val offset = IntOffset(
         xOffset.value.toInt(),
         yOffset.value.toInt())
+
+    val context = LocalPlatformContext.current
+    val imageModel = remember(tileSource, zoom, xIndex, yIndex) {
+        when (tileSource) {
+            is TileServer -> {
+                val url = tileSource.tileUrl
+                    .replace("{zoom}", zoom.toString())
+                    .replace("{x}", wrappedXIndex.toString())
+                    .replace("{y}", yIndex.toString())
+                val headers = NetworkHeaders.Builder()
+                tileSource.requestHeaders.forEach { header -> headers[header.key] = header.value }
+                ImageRequest.Builder(context)
+                    .data(url)
+                    .httpHeaders(headers.build())
+                    .build()
+            }
+            is LocalTileDirectory -> {
+                val path = "${tileSource.path}/$zoom/$wrappedXIndex/$yIndex.${tileSource.extension}"
+                ImageRequest.Builder(context)
+                    .data("file://$path")
+                    .build()
+            }
+        }
+    }
 
     Box(modifier = Modifier
         .offset { offset }
@@ -87,10 +101,7 @@ fun Tile(
             contentScale = ContentScale.FillBounds,
             placeholder = painterResource(Res.drawable.grid),
             modifier = Modifier.height(tileSize).width(tileSize),
-            model = ImageRequest.Builder(LocalPlatformContext.current)
-                .data(formattedUrl)
-                .httpHeaders(headers.build())
-                .build()
+            model = imageModel
         )
     }
 

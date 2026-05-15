@@ -15,17 +15,20 @@ import systems.untangle.karta.data.PxSize
 import systems.untangle.karta.data.ViewSpec
 import systems.untangle.karta.data.px
 import systems.untangle.karta.input.PointerPosition
+import systems.untangle.karta.network.LocalTileDirectory
 import systems.untangle.karta.network.TileServer
+import systems.untangle.karta.network.TileSource
 
 /**
- * Root composable that renders an interactive slippy map backed by any XYZ tile server.
+ * Root composable that renders an interactive slippy map.
  *
  * Place overlay composables ([Marker], [Circle], [Polyline], [Popup], etc.) inside [content].
  * They will automatically receive the current map state via composition locals
  * ([LocalZoom], [LocalConverter], [LocalCursor], [LocalViewingBoundingBox], [LocalPointerEvents]).
  *
- * @param tileServer Tile source configuration — URL template with `{zoom}`, `{x}`, `{y}`
- *   placeholders and optional HTTP headers.
+ * @param tileSource Tile source — either a [TileServer] (remote XYZ URL template with optional
+ *   HTTP headers) or a [LocalTileDirectory] (local directory laid out as `<path>/<zoom>/<x>/<y>.<ext>`,
+ *   matching gdal2tiles `--xyz` output).
  * @param interactive When `false`, disables all pan and zoom gestures.
  * @param initialCoords Geographic coordinates of the map center on first composition.
  * @param initialZoom Zoom level shown on first composition (default 14).
@@ -43,7 +46,7 @@ import systems.untangle.karta.network.TileServer
 @Suppress("unused")
 @Composable
 fun Karta(
-    tileServer: TileServer,
+    tileSource: TileSource,
     interactive: Boolean = true,
     initialCoords: Coordinates,
     initialZoom: Int = 14,
@@ -74,7 +77,7 @@ fun Karta(
     ) {
         nullableViewSize?.let { viewSize ->
             KMap(
-                tileServer,
+                tileSource,
                 initialZoom,
                 initialCoords,
                 viewSize,
