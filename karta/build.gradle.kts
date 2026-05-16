@@ -69,7 +69,7 @@ configurations.all {
 }
 
 group = "systems.untangle"
-version = "0.4.3"
+version = "0.5.0"
 
 mavenPublishing {
     publishToMavenCentral()

@@ -42,6 +42,7 @@ import systems.untangle.karta.input.PointerPosition
 import systems.untangle.karta.input.exclusiveListener
 import systems.untangle.karta.input.getPlatformSpecificPointerMonitor
 import systems.untangle.karta.kartaTileSize
+import systems.untangle.karta.network.TileLayer
 import systems.untangle.karta.network.TileSource
 import kotlin.math.pow
 
@@ -106,7 +107,7 @@ import kotlin.math.pow
 
 @Composable
 fun KMap(
-    tileSource: TileSource,
+    tileLayers: List<TileLayer>,
     initialZoom: Int,
     initialCoords: Coordinates,
     viewSize: PxSize,
@@ -369,19 +370,23 @@ fun KMap(
             }.sortedBy { (x, y) -> x * x + y * y }
         }
 
-        for ((x, y) in tileOffsets) {
-            val resultingY = center.y.toInt() + y
-            if (resultingY !in validYRange) continue
-            val resultingX = center.x.toInt() + x
+        for (layer in tileLayers) {
+            for ((x, y) in tileOffsets) {
+                val resultingY = center.y.toInt() + y
+                if (resultingY !in validYRange) continue
+                val resultingX = center.x.toInt() + x
 
-            Tile(
-                zoom.level,
-                resultingX,
-                resultingY,
-                center,
-                viewSize,
-                tileSource,
-                maxZoomIndex)
+                Tile(
+                    zoom.level,
+                    resultingX,
+                    resultingY,
+                    center,
+                    viewSize,
+                    layer.source,
+                    maxZoomIndex,
+                    layer.alpha
+                )
+            }
         }
     }
 

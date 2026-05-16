@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.material.Text
 
 import coil3.compose.AsyncImage
@@ -53,6 +54,7 @@ fun Tile(
     viewSize: PxSize,
     tileSource: TileSource,
     xModulo: Int,
+    alpha: Float = 1f,
     displayBoundaries: Boolean = false
 ) {
     var wrappedXIndex = xIndex
@@ -95,6 +97,7 @@ fun Tile(
     Box(modifier = Modifier
         .offset { offset }
         .requiredSize(tileSize)
+        .graphicsLayer { this.alpha = alpha }
     ) {
         AsyncImage(
             contentDescription = null,

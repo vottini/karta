@@ -70,7 +70,7 @@ fun Karta(
 ### Tile Source
 
 ```kotlin
-// Remote tile server
+// Public tile server
 val osm = TileServer("https://tile.openstreetmap.org/{zoom}/{x}/{y}.png")
 
 // Authenticated tile server
@@ -82,6 +82,21 @@ val private = TileServer(
 // Local directory (e.g. gdal2tiles --xyz output)
 val local = LocalTileDirectory(path = "/data/mytiles")
 val localJpeg = LocalTileDirectory(path = "/data/mytiles", extension = "jpg")
+```
+
+### Multiple Tile Layers
+
+When you need to composite several sources, use the `tileLayers` overload. Layers are rendered bottom-to-top; each `TileLayer` pairs a `TileSource` with an `alpha`.
+
+```kotlin
+Karta(
+    tileLayers = listOf(
+        TileLayer(TileServer("https://tile.openstreetmap.org/{zoom}/{x}/{y}.png")),
+        TileLayer(LocalTileDirectory("/data/overlay"), alpha = 0.6f)
+    ),
+    initialCoords = paris,
+    initialZoom = 13
+)
 ```
 
 ---
