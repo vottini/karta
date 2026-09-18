@@ -61,6 +61,12 @@ fun Tile(
     while (wrappedXIndex >= xModulo) wrappedXIndex -= xModulo
     while (wrappedXIndex < 0) wrappedXIndex += xModulo
 
+    val tms = when (tileSource) {
+        is TileServer -> tileSource.tms
+        is LocalTileDirectory -> tileSource.tms
+    }
+    val resolvedYIndex = if (tms) (xModulo - 1) - yIndex else yIndex
+
     val pixelDensity = LocalDensity.current.density
     val tileSize = kartaTileSize.toDp(pixelDensity)
     val xOffset = viewSize.halfWidth + ((xIndex - center.x) * tileSize.value).dp.toPx(pixelDensity)
@@ -77,7 +83,7 @@ fun Tile(
                 val url = tileSource.tileUrl
                     .replace("{zoom}", zoom.toString())
                     .replace("{x}", wrappedXIndex.toString())
-                    .replace("{y}", yIndex.toString())
+                    .replace("{y}", resolvedYIndex.toString())
                 val headers = NetworkHeaders.Builder()
                 tileSource.requestHeaders.forEach { header -> headers[header.key] = header.value }
                 ImageRequest.Builder(context)
@@ -86,7 +92,7 @@ fun Tile(
                     .build()
             }
             is LocalTileDirectory -> {
-                val path = "${tileSource.path}/$zoom/$wrappedXIndex/$yIndex.${tileSource.extension}"
+                val path = "${tileSource.path}/$zoom/$wrappedXIndex/$resolvedYIndex.${tileSource.extension}"
                 ImageRequest.Builder(context)
                     .data("file://$path")
                     .build()
