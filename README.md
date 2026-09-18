@@ -165,16 +165,89 @@ MovableMarker(
 
 ### Circle
 
+A circle (or sector / annulus) centered on a geographic coordinate. Delegates to `Ellipse` with equal radii.
+
 ```kotlin
+// Filled circle with stroke
 Circle(
     coords = Coordinates(48.8566, 2.3522),
     radius = 500f,
-    radiusUnit = DistanceUnit.METERS, // or DistanceUnit.PIXELS
-    fillColor = Color.Blue.copy(alpha = 0.2f),
-    borderColor = Color.Blue,
-    borderWidth = 2f
+    radiusUnit = DistanceUnit.METERS,
+    fillPattern = FillPattern.Solid(Color.Blue, alpha = 0.2f),
+    strokeColor = Color.Blue,
+    strokeWidth = 2f
+)
+
+// Annular sector (donut slice)
+Circle(
+    coords = myCoords,
+    radius = 200f,
+    innerRadius = 80f,
+    startAngle = -30f,
+    sweepAngle = 60f,
+    fillPattern = FillPattern.Solid(Color.Red, alpha = 0.4f),
+    strokeColor = Color.Red,
+    strokeWidth = 1f
 )
 ```
+
+---
+
+### Ellipse
+
+An ellipse (or elliptic sector / annular ellipse) with an optional rotation around its geographic center.
+
+```kotlin
+// Simple ellipse
+Ellipse(
+    coords = Coordinates(48.8566, 2.3522),
+    radiusX = 600f,
+    radiusY = 300f,
+    radiusUnit = DistanceUnit.METERS,
+    fillPattern = FillPattern.Solid(Color.Green, alpha = 0.3f),
+    strokeColor = Color.Green,
+    strokeWidth = 2f
+)
+
+// Rotated ellipse — center stays fixed, shape rotates clockwise by 45°
+Ellipse(
+    coords = myCoords,
+    radiusX = 400f,
+    radiusY = 150f,
+    radiusUnit = DistanceUnit.METERS,
+    inclination = 45f,
+    fillPattern = FillPattern.Hatched(Color.Blue, spacing = 10f, angle = 0f, strokeWidth = 1f),
+    strokeColor = Color.Blue,
+    strokeWidth = 2f
+)
+
+// Annular ellipse (elliptic donut)
+Ellipse(
+    coords = myCoords,
+    radiusX = 500f,
+    radiusY = 250f,
+    innerRadiusX = 200f,
+    innerRadiusY = 100f,
+    radiusUnit = DistanceUnit.METERS,
+    inclination = 30f,
+    strokeColor = Color.DarkGray,
+    strokeWidth = 2f
+)
+```
+
+| Parameter | Description |
+|-----------|-------------|
+| `radiusX` | Outer horizontal semi-axis |
+| `radiusY` | Outer vertical semi-axis |
+| `radiusUnit` | `PIXELS` or `METERS` |
+| `inclination` | Rotation in degrees around the center; positive = clockwise |
+| `startAngle` | Sector start angle (0° = east, clockwise positive) |
+| `sweepAngle` | Sector angular extent; 360 (default) = full ellipse |
+| `innerRadiusX` / `innerRadiusY` | Inner semi-axes for an annular shape; 0 = solid |
+| `strokeWidth` | Outline width in pixels; 0 = no stroke |
+| `strokeColor` | Outline color |
+| `fillPattern` | `FillPattern.Solid`, `Hatched`, `Crossed`, `Dotted`, or `null` |
+| `pathEffect` | Optional `PathEffect` on the stroke — e.g. `PathEffect.dashPathEffect(floatArrayOf(20f,8f,3f,8f), 0f)` for a dash-dot pattern |
 
 ---
 
@@ -198,6 +271,23 @@ Polyline(
     strokeColor = Color.Blue,
     strokeWidth = 3f,
     pathEffect = PathEffect.dashPathEffect(floatArrayOf(20f, 10f), 0f)
+)
+
+// Custom dash pattern: dash followed by three dots, repeating
+// The floatArrayOf alternates on/off lengths; any number of pairs is valid.
+Polyline(
+    coordsList = route,
+    strokeColor = Color.Black,
+    strokeWidth = 3f,
+    pathEffect = PathEffect.dashPathEffect(
+        intervals = floatArrayOf(
+            20f, 8f,  // dash
+             3f, 8f,  // dot 1
+             3f, 8f,  // dot 2
+             3f, 8f   // dot 3
+        ),
+        phase = 0f
+    )
 )
 
 // Solid-filled polygon

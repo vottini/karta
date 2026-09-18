@@ -280,11 +280,17 @@ fun KMap(
 
     }
 
+    // rememberUpdatedState ensures the scroll handler always reads the latest center
+    // even if the drag LaunchedEffect has updated it since the pointerInput block last started.
+    // Without this, a scroll event arriving between a drag update and the next composition
+    // would use a stale center, amplify the error by 2× (zoom scale), and jump the map.
+    val centerState = rememberUpdatedState(center)
+
     Box(
         Modifier
             .fillMaxWidth()
             .fillMaxHeight()
-            .pointerInput(center, zoom, viewSize) {
+            .pointerInput(zoom, viewSize) {
                 awaitPointerEventScope {
                     while (true) {
                         val event = awaitPointerEvent()
@@ -296,7 +302,7 @@ fun KMap(
                             ((position.y.px - viewSize.halfHeight) / kartaTileSize).value.toDouble()
                         )
 
-                        val eventOffset = center.add(offsets)
+                        val eventOffset = centerState.value.add(offsets)
                         val wrappedCoordinates = convertToLatLong(zoom.level, eventOffset)
                             .wrapLongitude()
 
