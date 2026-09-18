@@ -24,6 +24,10 @@ kotlin {
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     minSdk = libs.versions.android.minSdk.get().toInt()
 
+    optimization {
+      consumerKeepRules.files("consumer-rules.pro")
+    }
+
     compilations.configureEach {
       compilerOptions.configure {
         jvmTarget.set(JvmTarget.JVM_11)
