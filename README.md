@@ -2,7 +2,7 @@
 
 A tile map component in pure Compose Multiplatform — no native map SDKs required.
 
-Karta renders interactive slippy maps (pan, zoom, overlays) using any XYZ tile server, built entirely with Kotlin and Compose. Supports **Android** and **Desktop (JVM)**. Tiles are fetched and cached transparently via [Coil](https://github.com/coil-kt/coil), so network requests, disk caching, and memory management are handled automatically with no extra configuration.
+Karta renders interactive slippy maps (pan, zoom, overlays) using any XYZ tile server, local tile directory, or offline MBTiles file, built entirely with Kotlin and Compose. Supports **Android** and **Desktop (JVM)**. Remote and local-directory tiles are fetched and cached transparently via [Coil](https://github.com/coil-kt/coil), so network requests, disk caching, and memory management are handled automatically with no extra configuration.
 
 A working sample application is available at **[github.com/vottini/karta-sample](https://github.com/vottini/karta-sample)**.
 
@@ -54,7 +54,7 @@ fun Karta(
 
 | Parameter | Description |
 |-----------|-------------|
-| `tileSource` | Tile source — a [TileServer] or [LocalTileDirectory] |
+| `tileSource` | Tile source — a `TileServer`, `LocalTileDirectory`, or `MBTilesSource` |
 | `interactive` | Enable/disable pan and zoom gestures |
 | `initialCoords` | Starting map center as `Coordinates(latitude, longitude)` |
 | `initialZoom` | Starting zoom level |
@@ -82,6 +82,9 @@ val private = TileServer(
 // Local directory (e.g. gdal2tiles --xyz output)
 val local = LocalTileDirectory(path = "/data/mytiles")
 val localJpeg = LocalTileDirectory(path = "/data/mytiles", extension = "jpg")
+
+// Offline MBTiles file
+val offline = MBTilesSource(path = "/data/map.mbtiles")
 ```
 
 ### Multiple Tile Layers
@@ -536,6 +539,53 @@ SelectionItem(ctx, itemId = "poi-42") { sel ->
     }
 }
 ```
+
+---
+
+## MBTiles
+
+[MBTiles](https://github.com/mapbox/mbtiles-spec) is a SQLite-based format for storing a complete tileset in a single file. It is commonly produced by tools like [TileMill](https://tilemill-project.github.io/tilemill/), [GDAL](https://gdal.org/en/stable/drivers/raster/mbtiles.html), and [tippecanoe](https://github.com/felt/tippecanoe).
+
+```kotlin
+Karta(
+    tileSource = MBTilesSource(path = "/data/offline/world.mbtiles"),
+    initialCoords = Coordinates(48.8566, 2.3522),
+    initialZoom = 6
+)
+```
+
+Tiles are decoded directly from the SQLite file and held in an in-memory LRU cache (200 tiles ≈ 50 MB). The cache evicts the least recently used tiles as you pan, so memory stays bounded regardless of file size.
+
+### Reading Metadata
+
+MBTiles files optionally embed geographic and zoom coverage metadata. Use `readMBTilesMetadata` to read it before displaying the map — for example to auto-fit the initial view to the file's extent:
+
+```kotlin
+val metadata = readMBTilesMetadata("/data/offline/world.mbtiles")
+
+if (metadata != null) {
+    Karta(
+        tileSource = MBTilesSource(path = "/data/offline/world.mbtiles"),
+        initialCoords = metadata.center ?: metadata.bounds.topLeft,
+        initialZoom = metadata.minZoom,
+        minZoom = metadata.minZoom,
+        maxZoom = metadata.maxZoom
+    )
+}
+```
+
+`readMBTilesMetadata` is a suspend function and returns `null` if the file does not contain the required fields (`bounds`, `minzoom`, `maxzoom`).
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `bounds` | `BoundingBox` | Geographic extent of the tileset (WGS84) |
+| `minZoom` | `Int` | Minimum zoom level stored in the file |
+| `maxZoom` | `Int` | Maximum zoom level stored in the file |
+| `center` | `Coordinates?` | Suggested default view center, if present |
+
+### Coverage Filtering
+
+When metadata is available, Karta automatically skips tile requests that fall outside the file's declared coverage — both by zoom level and by geographic bounds. Tiles outside the covered area are silently left blank rather than triggering a SQLite query.
 
 ---
 

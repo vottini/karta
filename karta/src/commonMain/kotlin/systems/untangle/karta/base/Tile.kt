@@ -2,6 +2,7 @@ package systems.untangle.karta.base
 
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.width
@@ -23,9 +24,14 @@ import coil3.request.ImageRequest
 import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.LocalTileDirectory
+import systems.untangle.karta.network.MBTilesSource
+import systems.untangle.karta.network.MBTileStore
 import systems.untangle.karta.network.TileServer
 import systems.untangle.karta.network.TileSource
 
@@ -64,6 +70,7 @@ fun Tile(
     val tms = when (tileSource) {
         is TileServer -> tileSource.tms
         is LocalTileDirectory -> tileSource.tms
+        is MBTilesSource -> true
     }
     val resolvedYIndex = if (tms) (xModulo - 1) - yIndex else yIndex
 
@@ -97,6 +104,19 @@ fun Tile(
                     .data("file://$path")
                     .build()
             }
+            is MBTilesSource -> null
+        }
+    }
+
+    val mbTileBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
+        initialValue = null,
+        key1 = tileSource,
+        key2 = Triple(zoom, xIndex, yIndex)
+    ) {
+        if (tileSource is MBTilesSource) {
+            value = withContext(Dispatchers.IO) {
+                MBTileStore.getTile(tileSource.path, zoom, wrappedXIndex, resolvedYIndex)
+            }
         }
     }
 
@@ -105,13 +125,29 @@ fun Tile(
         .requiredSize(tileSize)
         .graphicsLayer { this.alpha = alpha }
     ) {
-        AsyncImage(
-            contentDescription = null,
-            contentScale = ContentScale.FillBounds,
-            placeholder = painterResource(Res.drawable.grid),
-            modifier = Modifier.height(tileSize).width(tileSize),
-            model = imageModel
-        )
+        if (tileSource is MBTilesSource) {
+            mbTileBitmap?.let { bitmap ->
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.height(tileSize).width(tileSize)
+                )
+            } ?: Image(
+                painter = painterResource(Res.drawable.grid),
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
+                modifier = Modifier.height(tileSize).width(tileSize)
+            )
+        } else {
+            AsyncImage(
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
+                placeholder = painterResource(Res.drawable.grid),
+                modifier = Modifier.height(tileSize).width(tileSize),
+                model = imageModel
+            )
+        }
     }
 
     if (displayBoundaries) {
