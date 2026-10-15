@@ -2,10 +2,10 @@ package systems.untangle.karta.network
 
 import java.sql.DriverManager
 
-internal actual class MBTileReader actual constructor(path: String) {
+private class DesktopMBTileReader(path: String) : MBTileReader {
     private val connection = DriverManager.getConnection("jdbc:sqlite:$path")
 
-    actual fun getTile(zoom: Int, x: Int, y: Int): ByteArray? {
+    override fun getTile(zoom: Int, x: Int, y: Int): ByteArray? {
         val stmt = connection.prepareStatement(
             "SELECT tile_data FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?"
         )
@@ -17,7 +17,7 @@ internal actual class MBTileReader actual constructor(path: String) {
         }
     }
 
-    actual fun getMetadataValue(name: String): String? {
+    override fun getMetadataValue(name: String): String? {
         val stmt = connection.prepareStatement("SELECT value FROM metadata WHERE name=?")
         return stmt.use { ps ->
             ps.setString(1, name)
@@ -25,5 +25,7 @@ internal actual class MBTileReader actual constructor(path: String) {
         }
     }
 
-    actual fun close() = connection.close()
+    override fun close() = connection.close()
 }
+
+internal actual fun createMBTileReader(path: String): MBTileReader = DesktopMBTileReader(path)

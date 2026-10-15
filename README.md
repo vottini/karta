@@ -12,7 +12,7 @@ A working sample application is available at **[github.com/vottini/karta-sample]
 
 ```kotlin
 // build.gradle.kts
-implementation("systems.untangle:karta:0.2.0")
+implementation("systems.untangle:karta:0.5.3")
 ```
 
 Published to Maven Central. Requires Compose Multiplatform and a `commonMain` or platform-specific source set.

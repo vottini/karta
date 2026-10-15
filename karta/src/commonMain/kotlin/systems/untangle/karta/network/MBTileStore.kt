@@ -21,7 +21,7 @@ internal object MBTileStore {
     suspend fun getMetadata(path: String): MBTilesMetadata? {
         mutex.withLock { if (metadataCache.containsKey(path)) return metadataCache[path] }
         val metadata = mutex.withLock {
-            val reader = readers.getOrPut(path) { MBTileReader(path) }
+            val reader = readers.getOrPut(path) { createMBTileReader(path) }
             parseMBTilesMetadata(reader).also { metadataCache[path] = it }
         }
         return metadata
@@ -35,7 +35,7 @@ internal object MBTileStore {
         mutex.withLock { cache[key] }?.let { return it }
 
         val bytes = mutex.withLock {
-            readers.getOrPut(path) { MBTileReader(path) }.getTile(zoom, x, tmsY)
+            readers.getOrPut(path) { createMBTileReader(path) }.getTile(zoom, x, tmsY)
         } ?: return null
 
         val bitmap = bytes.toImageBitmap()

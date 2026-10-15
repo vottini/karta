@@ -2,10 +2,10 @@ package systems.untangle.karta.network
 
 import android.database.sqlite.SQLiteDatabase
 
-internal actual class MBTileReader actual constructor(path: String) {
+private class AndroidMBTileReader(path: String) : MBTileReader {
     private val db = SQLiteDatabase.openDatabase(path, null, SQLiteDatabase.OPEN_READONLY)
 
-    actual fun getTile(zoom: Int, x: Int, y: Int): ByteArray? {
+    override fun getTile(zoom: Int, x: Int, y: Int): ByteArray? {
         val cursor = db.rawQuery(
             "SELECT tile_data FROM tiles WHERE zoom_level=? AND tile_column=? AND tile_row=?",
             arrayOf(zoom.toString(), x.toString(), y.toString())
@@ -13,7 +13,7 @@ internal actual class MBTileReader actual constructor(path: String) {
         return cursor.use { if (it.moveToFirst()) it.getBlob(0) else null }
     }
 
-    actual fun getMetadataValue(name: String): String? {
+    override fun getMetadataValue(name: String): String? {
         val cursor = db.rawQuery(
             "SELECT value FROM metadata WHERE name=?",
             arrayOf(name)
@@ -21,5 +21,7 @@ internal actual class MBTileReader actual constructor(path: String) {
         return cursor.use { if (it.moveToFirst()) it.getString(0) else null }
     }
 
-    actual fun close() = db.close()
+    override fun close() = db.close()
 }
+
+internal actual fun createMBTileReader(path: String): MBTileReader = AndroidMBTileReader(path)
