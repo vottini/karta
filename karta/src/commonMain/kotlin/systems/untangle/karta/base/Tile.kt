@@ -108,15 +108,18 @@ fun Tile(
         }
     }
 
-    val mbTileBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
-        initialValue = null,
-        key1 = tileSource,
-        key2 = Triple(zoom, xIndex, yIndex)
-    ) {
-        if (tileSource is MBTilesSource) {
-            value = withContext(Dispatchers.IO) {
+    val mbTileBitmap = remember(tileSource, zoom, xIndex, yIndex) {
+        val cached = if (tileSource is MBTilesSource)
+            MBTileStore.peekTile(tileSource.path, zoom, wrappedXIndex, resolvedYIndex)
+        else null
+        mutableStateOf(cached)
+    }
+    LaunchedEffect(tileSource, zoom, xIndex, yIndex) {
+        if (tileSource is MBTilesSource && mbTileBitmap.value == null) {
+            val bitmap = withContext(Dispatchers.IO) {
                 MBTileStore.getTile(tileSource.path, zoom, wrappedXIndex, resolvedYIndex)
             }
+            mbTileBitmap.value = bitmap
         }
     }
 
@@ -126,7 +129,7 @@ fun Tile(
         .graphicsLayer { this.alpha = alpha }
     ) {
         if (tileSource is MBTilesSource) {
-            mbTileBitmap?.let { bitmap ->
+            mbTileBitmap.value?.let { bitmap ->
                 Image(
                     bitmap = bitmap,
                     contentDescription = null,

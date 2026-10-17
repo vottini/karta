@@ -44,10 +44,10 @@ kotlin {
       implementation(compose.components.resources)
       implementation(libs.coil)
       implementation(libs.coil.compose)
-      implementation(libs.slf4f)
     }
 
     getByName("androidMain").dependencies {
+      implementation(libs.slf4f)
       implementation(libs.androidx.activity.compose)
       implementation(compose.preview)
     }
@@ -74,7 +74,7 @@ configurations.all {
 }
 
 group = "systems.untangle"
-version = "0.5.3"
+version = "0.5.4"
 
 mavenPublishing {
     publishToMavenCentral()

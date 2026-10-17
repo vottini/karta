@@ -11,6 +11,8 @@ internal class LruCache<K, V>(private val maxSize: Int) {
         return value
     }
 
+    fun peek(key: K): V? = map[key]
+
     operator fun set(key: K, value: V) {
         if (map.containsKey(key)) {
             accessQueue.remove(key)

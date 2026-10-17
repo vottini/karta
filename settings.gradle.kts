@@ -29,3 +29,4 @@ dependencyResolutionManagement {
 }
 
 include(":karta")
+include(":preview")

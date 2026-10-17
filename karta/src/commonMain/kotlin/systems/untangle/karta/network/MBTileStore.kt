@@ -27,18 +27,29 @@ internal object MBTileStore {
         return metadata
     }
 
+    fun peekTile(path: String, zoom: Int, x: Int, tmsY: Int): ImageBitmap? =
+        cache.peek(TileKey(path, zoom, x, tmsY))
+
     suspend fun getTile(path: String, zoom: Int, x: Int, tmsY: Int): ImageBitmap? {
         val metadata = getMetadata(path)
-        if (metadata != null && !tileInCoverage(zoom, x, tmsY, metadata)) return null
+        if (metadata != null) {
+            if (!metadata.format.isRaster) return null
+            if (!tileInCoverage(zoom, x, tmsY, metadata)) return null
+        }
 
         val key = TileKey(path, zoom, x, tmsY)
         mutex.withLock { cache[key] }?.let { return it }
 
         val bytes = mutex.withLock {
             readers.getOrPut(path) { createMBTileReader(path) }.getTile(zoom, x, tmsY)
-        } ?: return null
+        }?.takeIf { it.isNotEmpty() } ?: return null
 
-        val bitmap = bytes.toImageBitmap()
+        val bitmap = try {
+            bytes.toImageBitmap()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return null
+        }
         mutex.withLock { cache[key] = bitmap }
         return bitmap
     }
