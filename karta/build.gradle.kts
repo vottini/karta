@@ -1,5 +1,4 @@
 
-import com.android.build.api.dsl.androidLibrary
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -19,7 +18,7 @@ repositories {
 kotlin {
   jvm("desktop")
 
-  androidLibrary {
+  android {
     namespace = "systems.untangle.karta"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
     minSdk = libs.versions.android.minSdk.get().toInt()
@@ -29,19 +28,21 @@ kotlin {
     }
 
     compilations.configureEach {
-      compilerOptions.configure {
-        jvmTarget.set(JvmTarget.JVM_11)
+      compileTaskProvider.configure {
+        compilerOptions {
+          jvmTarget.set(JvmTarget.JVM_11)
+        }
       }
     }
   }
 
   sourceSets {
     commonMain.dependencies {
-      implementation(compose.runtime)
-      implementation(compose.foundation)
-      implementation(compose.material)
-      implementation(compose.ui)
-      implementation(compose.components.resources)
+      implementation(libs.compose.runtime)
+      implementation(libs.compose.foundation)
+      implementation(libs.compose.material)
+      implementation(libs.compose.ui)
+      implementation(libs.compose.components.resources)
       implementation(libs.coil)
       implementation(libs.coil.compose)
     }
@@ -49,7 +50,7 @@ kotlin {
     getByName("androidMain").dependencies {
       implementation(libs.slf4f)
       implementation(libs.androidx.activity.compose)
-      implementation(compose.preview)
+      implementation(libs.compose.ui.tooling.preview)
     }
 
     getByName("desktopMain").dependencies {
@@ -74,7 +75,7 @@ configurations.all {
 }
 
 group = "systems.untangle"
-version = "0.5.4"
+version = "0.5.5"
 
 mavenPublishing {
     publishToMavenCentral()
