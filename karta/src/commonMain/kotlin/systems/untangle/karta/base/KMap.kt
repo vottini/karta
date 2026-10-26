@@ -376,16 +376,18 @@ fun KMap(
                 if (resultingY !in validYRange) continue
                 val resultingX = center.x.toInt() + x
 
-                Tile(
-                    zoom.level,
-                    resultingX,
-                    resultingY,
-                    center,
-                    viewSize,
-                    layer.source,
-                    maxZoomIndex,
-                    layer.alpha
-                )
+                key(layer.source, zoom.level, resultingX, resultingY) {
+                    Tile(
+                        zoom.level,
+                        resultingX,
+                        resultingY,
+                        center,
+                        viewSize,
+                        layer.source,
+                        maxZoomIndex,
+                        layer.alpha
+                    )
+                }
             }
         }
     }

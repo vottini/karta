@@ -1,6 +1,7 @@
 package systems.untangle.karta.base
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -25,11 +26,13 @@ import coil3.network.NetworkHeaders
 import coil3.network.httpHeaders
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 import systems.untangle.karta.data.DoubleOffset
 import systems.untangle.karta.kartaTileSize
 import systems.untangle.karta.network.LocalTileDirectory
+import systems.untangle.karta.network.LocalTileStore
 import systems.untangle.karta.network.MBTilesSource
 import systems.untangle.karta.network.MBTileStore
 import systems.untangle.karta.network.TileServer
@@ -67,13 +70,20 @@ fun Tile(
     while (wrappedXIndex >= xModulo) wrappedXIndex -= xModulo
     while (wrappedXIndex < 0) wrappedXIndex += xModulo
 
-    val tms = when (tileSource) {
-        is TileServer -> tileSource.tms
-        is LocalTileDirectory -> tileSource.tms
-        is MBTilesSource -> true
-    }
-    val resolvedYIndex = if (tms) (xModulo - 1) - yIndex else yIndex
+    val resolvedYIndex = remember(tileSource, xModulo, yIndex) {
+        val tms = when (tileSource) {
+            is TileServer -> tileSource.tms
+            is LocalTileDirectory -> tileSource.tms
+            is MBTilesSource -> true
+        }
 
+        when (tms) {
+            true -> (xModulo - 1) - yIndex
+            false -> yIndex
+        }
+    }
+
+    val gridPainter = painterResource(Res.drawable.grid)
     val pixelDensity = LocalDensity.current.density
     val tileSize = kartaTileSize.toDp(pixelDensity)
     val xOffset = viewSize.halfWidth + ((xIndex - center.x) * tileSize.value).dp.toPx(pixelDensity)
@@ -85,42 +95,55 @@ fun Tile(
 
     val context = LocalPlatformContext.current
     val imageModel = remember(tileSource, zoom, xIndex, yIndex) {
+        if (tileSource is TileServer) {
+            val url = tileSource.tileUrl
+                .replace("{zoom}", zoom.toString())
+                .replace("{x}", wrappedXIndex.toString())
+                .replace("{y}", resolvedYIndex.toString())
+            val headers = NetworkHeaders.Builder()
+            tileSource.requestHeaders.forEach { header -> headers[header.key] = header.value }
+            ImageRequest.Builder(context)
+                .data(url)
+                .httpHeaders(headers.build())
+                .build()
+        } else null
+    }
+
+    val localFilePath = remember(tileSource, zoom, xIndex, yIndex) {
         when (tileSource) {
-            is TileServer -> {
-                val url = tileSource.tileUrl
-                    .replace("{zoom}", zoom.toString())
-                    .replace("{x}", wrappedXIndex.toString())
-                    .replace("{y}", resolvedYIndex.toString())
-                val headers = NetworkHeaders.Builder()
-                tileSource.requestHeaders.forEach { header -> headers[header.key] = header.value }
-                ImageRequest.Builder(context)
-                    .data(url)
-                    .httpHeaders(headers.build())
-                    .build()
-            }
-            is LocalTileDirectory -> {
-                val path = "${tileSource.path}/$zoom/$wrappedXIndex/$resolvedYIndex.${tileSource.extension}"
-                ImageRequest.Builder(context)
-                    .data("file://$path")
-                    .build()
-            }
-            is MBTilesSource -> null
+            is LocalTileDirectory -> "${tileSource.path}/$zoom/$wrappedXIndex/$resolvedYIndex.${tileSource.extension}"
+            else -> null
         }
     }
 
-    val mbTileBitmap = remember(tileSource, zoom, xIndex, yIndex) {
-        val cached = if (tileSource is MBTilesSource)
-            MBTileStore.peekTile(tileSource.path, zoom, wrappedXIndex, resolvedYIndex)
-        else null
-        mutableStateOf(cached)
-    }
-    LaunchedEffect(tileSource, zoom, xIndex, yIndex) {
-        if (tileSource is MBTilesSource && mbTileBitmap.value == null) {
-            val bitmap = withContext(Dispatchers.IO) {
-                MBTileStore.getTile(tileSource.path, zoom, wrappedXIndex, resolvedYIndex)
-            }
-            mbTileBitmap.value = bitmap
+    val localBitmap: MutableState<ImageBitmap?> = remember(tileSource, zoom, xIndex, yIndex) {
+        when {
+            tileSource is LocalTileDirectory && localFilePath != null ->
+                LocalTileStore.getTileState(localFilePath)
+            tileSource is MBTilesSource ->
+                mutableStateOf(MBTileStore.peekTile(tileSource.path, zoom, wrappedXIndex, resolvedYIndex))
+            else -> mutableStateOf<ImageBitmap?>(null)
         }
+    }
+
+    val localBitmapChecked: MutableState<Boolean> = remember(tileSource, zoom, xIndex, yIndex) {
+        when {
+            tileSource is LocalTileDirectory && localFilePath != null ->
+                LocalTileStore.getTileCheckedState(localFilePath)
+            else -> mutableStateOf(true)
+        }
+    }
+
+    LaunchedEffect(tileSource, zoom, xIndex, yIndex) {
+        if (localBitmapChecked.value) return@LaunchedEffect
+        val bitmap = withContext(NonCancellable + Dispatchers.IO) {
+            when (tileSource) {
+                is MBTilesSource -> MBTileStore.getTile(tileSource.path, zoom, wrappedXIndex, resolvedYIndex)
+                is LocalTileDirectory -> localFilePath?.let { LocalTileStore.getTile(it) }
+                else -> null
+            }
+        }
+        if (tileSource is MBTilesSource) localBitmap.value = bitmap
     }
 
     Box(modifier = Modifier
@@ -128,28 +151,31 @@ fun Tile(
         .requiredSize(tileSize)
         .graphicsLayer { this.alpha = alpha }
     ) {
-        if (tileSource is MBTilesSource) {
-            mbTileBitmap.value?.let { bitmap ->
+        if (tileSource is TileServer) {
+            AsyncImage(
+                contentDescription = null,
+                contentScale = ContentScale.FillBounds,
+                placeholder = gridPainter,
+                modifier = Modifier.height(tileSize).width(tileSize),
+                model = imageModel
+            )
+        } else {
+            val bitmap = localBitmap.value
+            if (bitmap != null) {
                 Image(
                     bitmap = bitmap,
                     contentDescription = null,
                     contentScale = ContentScale.FillBounds,
                     modifier = Modifier.height(tileSize).width(tileSize)
                 )
-            } ?: Image(
-                painter = painterResource(Res.drawable.grid),
-                contentDescription = null,
-                contentScale = ContentScale.FillBounds,
-                modifier = Modifier.height(tileSize).width(tileSize)
-            )
-        } else {
-            AsyncImage(
-                contentDescription = null,
-                contentScale = ContentScale.FillBounds,
-                placeholder = painterResource(Res.drawable.grid),
-                modifier = Modifier.height(tileSize).width(tileSize),
-                model = imageModel
-            )
+            } else if (!localBitmapChecked.value) {
+                Image(
+                    painter = gridPainter,
+                    contentDescription = null,
+                    contentScale = ContentScale.FillBounds,
+                    modifier = Modifier.height(tileSize).width(tileSize)
+                )
+            }
         }
     }
 

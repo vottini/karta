@@ -17,11 +17,13 @@ class ZoomSpecs (val value: Int, val minValue: Int, val maxValue: Int) {
  * Stores and allows control of the zoom of the map
  */
 
-data class ZoomLevel(
+class ZoomLevel(
     val level: Int,
     val increment: () -> Unit,
     val decrement: () -> Unit
 ) {
+    override fun equals(other: Any?) = other is ZoomLevel && other.level == level
+    override fun hashCode() = level
     private val maxSize: Double = (1 shl level).toDouble()
 
     /**
