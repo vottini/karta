@@ -130,7 +130,7 @@ fun Tile(
         when {
             tileSource is LocalTileDirectory && localFilePath != null ->
                 LocalTileStore.getTileCheckedState(localFilePath)
-            else -> mutableStateOf(true)
+            else -> mutableStateOf(localBitmap.value != null)
         }
     }
 
@@ -143,7 +143,8 @@ fun Tile(
                 else -> null
             }
         }
-        if (tileSource is MBTilesSource) localBitmap.value = bitmap
+        localBitmap.value = bitmap
+        localBitmapChecked.value = true
     }
 
     Box(modifier = Modifier
